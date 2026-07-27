@@ -1,2 +1,6 @@
 button.selected{border-color:var(--gold);background:#5a4212;box-shadow:0 0 0 2px #f6c45355}
 .sheet>button{display:block;width:100%;margin:7px 0;text-align:left}
+.dialog{place-items:center;padding:calc(16px + env(safe-area-inset-top)) 14px calc(16px + env(safe-area-inset-bottom))}
+.sheet{width:min(92vw,430px);border-radius:20px;padding:20px 16px;max-height:min(72dvh,560px);box-shadow:0 24px 70px #000b}
+.sheet .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sheet .actions button{min-height:48px;margin:0}
