@@ -1,0 +1,7 @@
+.mat-zone.tappable{cursor:pointer;border-color:#8b9bb2}.mat-zone.tappable:active{background:#1a2b43;transform:scale(.98)}
+.zone-sheet{width:min(94vw,520px);max-height:82dvh}.zone-help{margin:4px 0 10px}
+.zone-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;max-height:34dvh;overflow:auto;padding:2px}
+.zone-card-grid button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:58px;padding:8px}
+.zone-card-grid button strong{font-size:.72rem;line-height:1.25}.zone-card-grid button small{color:var(--muted);margin-top:4px}
+.zone-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}.zone-actions button,.zone-tools button{font-size:.68rem;padding:8px 5px}
+.zone-tools{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.zone-close{width:100%;margin-top:10px}
