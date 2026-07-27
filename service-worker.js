@@ -1,2 +1,5 @@
-button.selected{border-color:var(--gold);background:#5a4212;box-shadow:0 0 0 2px #f6c45355}
-.sheet>button{display:block;width:100%;margin:7px 0;text-align:left}
+const CACHE='op-ai-trainer-v2-1-1';
+const ASSETS=['./','./index.html','./app.css','./v21.css','./manifest.webmanifest','./app.js','./game-engine.js','./rule-engine.js','./effect-engine.js','./ai-engine.js','./storage.js','./ui.js','./cards.json','./black-yellow-teach.json','./purple-enel.json','./icon-192.png','./icon-512.png'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(hit=>hit||fetch(e.request).then(r=>{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r}).catch(()=>caches.match('./index.html'))))});
