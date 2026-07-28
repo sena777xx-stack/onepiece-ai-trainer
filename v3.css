@@ -67,3 +67,8 @@
 .mulligan-cards .card{flex:0 0 104px;width:104px;height:146px;scroll-snap-align:center}
 .mulligan-help{margin:0 0 12px;color:var(--muted);font-size:.72rem;text-align:center}
 @media(max-width:390px){.hand-wrap{width:90vw}.hand .card{flex-basis:86px;width:86px;min-width:86px;height:121px}.mulligan-cards .card{flex-basis:96px;width:96px;height:135px}}
+.don-picker{text-align:center}
+.don-stepper{display:grid;grid-template-columns:72px 1fr 72px;align-items:center;gap:12px;margin:18px 0}
+.don-stepper button{min-height:58px;font-size:1.65rem;padding:8px}
+.don-value{display:grid;place-items:center;min-height:58px;border:1px solid var(--gold);border-radius:14px;background:#091322;color:var(--gold);font-size:2rem}
+.don-picker>button{width:100%;margin-top:8px}
