@@ -174,14 +174,19 @@
     "counter": 1000,
     "traits": [
       "巨人族",
+      "インペルダウン",
       "黒ひげ海賊団"
     ],
     "imageUrl": "https://xbdxqvbwmdrrewv2.public.blob.vercel-storage.com/cards/onepiece/6bbb2705-5a03-4d5d-b455-2ce5e6962c7a/thumb.webp",
-    "text": "黒ひげ海賊団の効果を持つキャラ。",
+    "text": "【KO時】自分のリーダーが特徴《黒ひげ海賊団》を持つ場合、カード1枚を引き、自分のリーダーかキャラ1枚までを、このターン中、元々のパワー7000にする。【トリガー】このカードの【KO時】効果を発動する。",
     "effects": [
       {
+        "timing": "onKO",
+        "action": "sanjuanPowerChoice"
+      },
+      {
         "timing": "trigger",
-        "action": "unsupported"
+        "action": "sanjuanPowerChoice"
       }
     ]
   },
