@@ -1,4 +1,4 @@
-const CACHE='op-ai-trainer-v3-20-1';
+const CACHE='op-ai-trainer-v3-20-2';
 const ASSETS=['./','./index.html','./app.css','./v21.css','./v22.css','./v23.css','./v24.css','./v3.css','./v312.css','./v313.css','./v314.css','./v315.css','./v316.css','./v317.css','./v318.css','./v319.css','./manifest.webmanifest','./app-v312.js','./app.js','./game-engine-v3.js','./rule-engine-v3.js','./effect-engine.js','./ai-engine.js','./storage.js','./ui-fixed.js','./ui-v312-patch.js','./ui-v313-patch.js','./v314-patch.js','./v315-patch.js','./v316-patch.js','./v317-patch.js','./v318-patch.js','./v319-patch.js','./v320-patch.js','./cards.json','./black-yellow-teach.json','./purple-enel.json','./assets/don/don-front.jpg','./assets/don/don-back.jpg','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
