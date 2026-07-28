@@ -57,3 +57,13 @@
 .card-preview{width:min(88vw,340px);max-height:92dvh;overflow:auto;padding:16px;background:#111c2e;border:1px solid #52627d;border-radius:18px;color:#fff;text-align:center}
 .card-preview img{width:min(72vw,300px);max-height:65dvh;object-fit:contain;border-radius:10px}
 .card-preview p{white-space:pre-wrap;text-align:left;line-height:1.55}
+/* Ver3.3: readable one-row mobile hand */
+.hand{max-height:none;min-height:166px}
+.hand .cards{display:flex;grid-template-columns:none;gap:7px;min-height:136px;max-height:none;overflow-x:auto;overflow-y:hidden;align-items:center;padding:4px 6px 9px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.hand .card{flex:0 0 92px;width:92px;height:129px;min-width:92px;scroll-snap-align:start}
+.hand-wrap{width:min(92vw,520px)}
+.mulligan-sheet{width:min(94vw,520px);max-height:88dvh}
+.mulligan-cards{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.mulligan-cards .card{flex:0 0 104px;width:104px;height:146px;scroll-snap-align:center}
+.mulligan-help{margin:0 0 12px;color:var(--muted);font-size:.72rem;text-align:center}
+@media(max-width:390px){.hand-wrap{width:90vw}.hand .card{flex-basis:86px;width:86px;min-width:86px;height:121px}.mulligan-cards .card{flex-basis:96px;width:96px;height:135px}}

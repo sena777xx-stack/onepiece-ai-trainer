@@ -1,4 +1,4 @@
-const CACHE='op-ai-trainer-v3-2-0';
+const CACHE='op-ai-trainer-v3-3-0';
 const ASSETS=['./','./index.html','./app.css','./v21.css','./v22.css','./v23.css','./v24.css','./v3.css','./manifest.webmanifest','./app.js','./game-engine-v3.js','./rule-engine-v3.js','./effect-engine.js','./ai-engine.js','./storage.js','./ui-fixed.js','./cards.json','./black-yellow-teach.json','./purple-enel.json','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
