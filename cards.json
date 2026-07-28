@@ -373,7 +373,7 @@
     "color": [
       "yellow"
     ],
-    "cost": 5,
+    "cost": 8,
     "counter": 0,
     "traits": [
       "黒ひげ海賊団"
@@ -382,7 +382,7 @@
       "main"
     ],
     "imageUrl": "https://xbdxqvbwmdrrewv2.public.blob.vercel-storage.com/cards/onepiece/6eb465d3-8969-40b6-91e5-363fdb0632c6/thumb.webp",
-    "text": "黒ひげ海賊団のイベント。",
+    "text": "【メイン】自分の場のDON!!が10枚ある場合、自分の手札から「マーシャル・D・ティーチ」1枚までを登場させる。その後、相手のライフの上から1枚までを持ち主の手札に加える。【トリガー】カード2枚を引き、自分の手札1枚を捨てる。",
     "effects": [
       {
         "timing": "onPlay",
@@ -390,7 +390,9 @@
       },
       {
         "timing": "trigger",
-        "action": "unsupported"
+        "action": "drawThenDiscard",
+        "draw": 2,
+        "discard": 1
       }
     ]
   },

@@ -15,6 +15,7 @@ actions.skipLeaderRedirect=()=>{ui.close();ui.defense(engine.state,true)};
 actions.effectChoice=ids=>{ui.close();engine.resolveTeachKoChoice('player',ids);render();maybeAi()};
 actions.teach10=targetUid=>{ui.close();engine.useTeach10('player',targetUid);render()};
 actions.engineSync=()=>engine.syncBurgessPower?.();
+actions.zehahaChoice=async(targetUid,takeLife)=>{ui.close();await engine.resolveZehahaChoice('player',targetUid,takeLife);render();maybeAi()};
 actions.devonChoice=async targetUid=>{ui.close();await engine.resolveDevonChoice('player',targetUid);if(engine.state.pending?.kind==='battle'&&engine.state.pending.defendingSide==='ai')await engine.autoResolveDefense();render();maybeAi()};
 actions.handNoticeContinue=()=>{ui.close();engine.resolveHandNotice();render();maybeAi()};
 actions.undo=()=>{ui.close();const ok=engine.undo();if(!ok){ui.toast('これ以上戻せません');return}ui.knownHandIds=new Set(engine.state.sides.player.hand.map(c=>c.uid));ui.lastPhase=engine.state.phase;render();maybeAi()};
