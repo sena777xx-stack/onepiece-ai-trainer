@@ -84,3 +84,11 @@
 .redirect-targets img{width:100%;aspect-ratio:.715;object-fit:cover;border-radius:7px}
 .redirect-targets strong{font-size:.68rem}.redirect-targets small{font-size:.58rem;color:var(--muted)}
 .redirect-sheet>button{width:100%;margin-top:8px}
+.peek-card.front.has-card-image{padding:0;overflow:hidden;background:#101722}
+.peek-card-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;z-index:1}
+.peek-card.front.has-card-image>span{opacity:0}
+.peek-card.front.has-card-image>b{z-index:2}
+.life-reveal-sheet{width:min(90vw,360px);max-height:92dvh;overflow:auto;padding:18px;background:#111c2e;border:1px solid #52627d;border-radius:20px;color:#fff;text-align:center}
+.life-reveal-sheet>img{width:min(62vw,240px);max-height:55dvh;object-fit:contain;border-radius:10px}
+.life-reveal-sheet h2{margin-top:0}.life-reveal-sheet h3{margin-bottom:6px}.life-reveal-sheet p{text-align:left;white-space:pre-wrap;line-height:1.5;color:#ccd6e5}
+.life-reveal-sheet .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.life-reveal-sheet .actions button:only-child{grid-column:1/-1}
