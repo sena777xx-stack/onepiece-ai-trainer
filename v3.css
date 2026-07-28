@@ -97,3 +97,6 @@
 .redirect-body{overflow-y:auto;padding:4px 18px 18px;-webkit-overflow-scrolling:touch}.redirect-body .effect-target-grid{max-height:none}
 .redirect-footer{display:grid;grid-template-columns:1fr 1.35fr;gap:9px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#0c1728;box-shadow:0 -8px 24px #0008}
 .redirect-footer button{min-height:52px}.discard-summary{padding:9px;border:1px solid var(--gold);border-radius:10px;background:#4b3812;color:#fff;font-weight:800}
+.redirect-footer.single{grid-template-columns:1fr}.hand-gain-flow{height:min(82dvh,650px)}
+.hand-gain-grid{display:flex;gap:10px;overflow-x:auto;padding:5px 2px 14px;scroll-snap-type:x mandatory}
+.hand-gain-card{flex:0 0 min(46vw,170px);display:grid;gap:5px;scroll-snap-align:center}.hand-gain-card img{width:100%;aspect-ratio:.715;object-fit:cover;border-radius:10px;border:1px solid #6d7d95}.hand-gain-card strong{font-size:.8rem}.hand-gain-card small{color:var(--muted)}
