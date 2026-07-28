@@ -201,15 +201,19 @@
     "power": 6000,
     "counter": 1000,
     "traits": [
+      "エッグヘッド",
       "海軍"
     ],
     "imageUrl": "https://xbdxqvbwmdrrewv2.public.blob.vercel-storage.com/cards/onepiece/890c6c9d-2453-4a72-b980-4164a020641b/thumb.webp",
-    "text": "海軍の効果を持つキャラ。",
+    "text": "【ブロッカー】【登場時】自分のライフが2枚以下の場合、自分のデッキの上から1枚までを、ライフの上に加える。",
     "effects": [
       {
-        "timing": "trigger",
-        "action": "unsupported"
+        "timing": "onPlay",
+        "action": "borsalinoLifeChoice"
       }
+    ],
+    "keywords": [
+      "blocker"
     ]
   },
   {
