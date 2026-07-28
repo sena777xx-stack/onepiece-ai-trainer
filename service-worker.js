@@ -1,5 +1,11 @@
-const CACHE='op-ai-trainer-v3-17-0';
-const ASSETS=['./','./index.html','./app.css','./v21.css','./v22.css','./v23.css','./v24.css','./v3.css','./v312.css','./v313.css','./v314.css','./v315.css','./v316.css','./v317.css','./manifest.webmanifest','./app-v312.js','./app.js','./game-engine-v3.js','./rule-engine-v3.js','./effect-engine.js','./ai-engine.js','./storage.js','./ui-fixed.js','./ui-v312-patch.js','./ui-v313-patch.js','./v314-patch.js','./v315-patch.js','./v316-patch.js','./v317-patch.js','./cards.json','./black-yellow-teach.json','./purple-enel.json','./icon-192.png','./icon-512.png'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(r=>{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r}).catch(()=>caches.match(e.request).then(hit=>hit||caches.match('./index.html'))))});
+export const clone=value=>structuredClone(value);
+export const other=side=>side==='player'?'ai':'player';
+export const shuffle=list=>{const result=[...list];for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]]}return result};
+export const isMain=g=>g.phase==='main'&&!g.pending&&!g.winner;
+export const legalPlay=(g,side,card)=>g.activeSide===side&&isMain(g)&&['character','event','stage'].includes(card.type)&&(card.type!=='event'||(card.keywords||[]).includes('main'))&&Number(card.cost||0)<=g.sides[side].don.active&&(card.type!=='character'||g.sides[side].field.length<5);
+export const legalAttack=(g,side,card)=>g.activeSide===side&&isMain(g)&&(g.turnsTaken?.[side]||0)>1&&['leader','character'].includes(card.type)&&!card.rested&&(!card.summoningSickness||(card.keywords||[]).includes('rush'));
+export const attackTargets=(g,side)=>{const foe=g.sides[other(side)];return[{kind:'leader',uid:foe.leader.uid,name:foe.leader.name},...foe.field.filter(c=>c.rested).map(c=>({kind:'character',uid:c.uid,name:c.name}))]};
+export const counterOptions=(g,side)=>g.sides[side].hand.filter(c=>Number(c.counter)>0);
+export const blockers=(g,side)=>g.sides[side].field.filter(c=>!c.rested&&(c.keywords||[]).includes('blocker'));
+export const winner=g=>{for(const side of['player','ai'])if(g.sides[side].defeated||g.sides[side].deck.length===0)return other(side);return null};
+export const RULE_LIMITS=Object.freeze({deck:50,donDeck:10,characters:5,stage:1,openingHand:5});

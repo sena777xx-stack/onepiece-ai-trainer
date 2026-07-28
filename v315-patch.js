@@ -1,26 +1,23 @@
 import{GameEngine}from'./game-engine-v3.js';
 import{UI}from'./ui-fixed.js?v=3122';
-const other=side=>side==='player'?'ai':'player';
 const el=(tag,attrs={},...children)=>{const node=document.createElement(tag);for(const[key,value]of Object.entries(attrs)){if(key==='class')node.className=value;else if(key.startsWith('on'))node.addEventListener(key.slice(2).toLowerCase(),value);else if(value!==null&&value!==undefined)node.setAttribute(key,value)}for(const child of children.flat())node.append(child?.nodeType?child:document.createTextNode(child??''));return node};
-const previousChoice=GameEngine.prototype.resolveTeachKoChoice;
+const standardEffectChoice=GameEngine.prototype.resolveTeachKoChoice;
 GameEngine.prototype.resolveTeachKoChoice=function(side,ids=[]){
- const pending=this.state.pending;if(!['teach119OnPlayChoice','teach119TriggerChoice'].includes(pending?.kind))return previousChoice.call(this,side,ids);if(pending.side!==side)return false;
- if(pending.kind==='teach119OnPlayChoice'){
-  const own=this.state.sides[side],chosen=pending.cards.find(card=>card.uid===ids[0]);if(chosen){own.life.push(chosen);this.log(`${chosen.name}をライフの上に加えた`)}const rest=pending.cards.filter(card=>card.uid!==chosen?.uid);own.deck.unshift(...rest);this.log(`残り${rest.length}枚をデッキの下に置いた`);this.state.pending=null;this.state.phase='main';return true;
- }
- const foeSide=other(side),foe=this.state.sides[foeSide];
- if(pending.stage==='negate'){
-  const target=foe.field.find(card=>card.uid===ids[0]);if(target){target.effectsNegatedTurn=this.state.turn;this.log(`${target.name}の効果をこのターン中無効にした`)}pending.stage='ko';pending.options=foe.field.filter(card=>this.effectiveCost(foeSide,card)<=5).map(card=>card.uid);return true;
- }
- const target=foe.field.find(card=>card.uid===ids[0]&&this.effectiveCost(foeSide,card)<=5);if(target){foe.field=foe.field.filter(card=>card.uid!==target.uid);if(target.attachedDon){foe.don.rested+=target.attachedDon;target.attachedDon=0}foe.trash.push(target);this.log(`${target.name}をK.O.`)}this.state.pending=null;this.state.phase='main';return true;
+ const pending=this.state.pending;
+ if(pending?.kind!=='handDiscardChoice')return standardEffectChoice.call(this,side,ids);
+ if(pending.side!==side)return false;
+ const hand=this.state.sides[side].hand,chosen=[...new Set(ids)].map(id=>hand.find(card=>card.uid===id)).filter(Boolean).slice(0,pending.count||1);
+ if(chosen.length!==(pending.count||1))return false;
+ this.snapshot();
+ for(const card of chosen){this.state.sides[side].hand=this.state.sides[side].hand.filter(item=>item.uid!==card.uid);this.state.sides[side].trash.push(card);this.log(`${card.name}をトラッシュへ送った`)}
+ this.state.pending=null;this.state.phase='main';return true;
 };
-const previousRender=UI.prototype.renderGame;
-UI.prototype.renderGame=function(g){previousRender.call(this,g);if(g.pending?.kind==='teach119OnPlayChoice'&&g.pending.side==='player')this.teach119OnPlayPrompt(g);if(g.pending?.kind==='teach119TriggerChoice'&&g.pending.side==='player')this.teach119TriggerPrompt(g)};
-UI.prototype.teach119OnPlayPrompt=function(g){
- this.close();const pending=g.pending;let selected=null;const overlay=el('div',{class:'dialog'}),panel=el('section',{class:'redirect-flow teach119-flow'}),head=el('div',{class:'redirect-head'},el('small',{},pending.sourceName),el('h2',{},'デッキ上3枚を確認')),body=el('div',{class:'redirect-body'}),grid=el('div',{class:'teach119-card-grid'}),foot=el('div',{class:'redirect-footer'}),confirm=el('button',{class:'primary'},'選択して続ける');
- const update=()=>grid.querySelectorAll('button').forEach(button=>button.classList.toggle('selected',button.dataset.id===selected));for(const card of pending.cards){const button=el('button',{'data-id':card.uid},card.imageUrl?el('img',{src:card.imageUrl,alt:card.name}):'',el('strong',{},card.name),el('small',{},card.id||''),el('span',{class:'teach119-check'},'✓'));button.addEventListener('click',()=>{selected=selected===card.uid?null:card.uid;update()});grid.append(button)}confirm.addEventListener('click',()=>this.a.effectChoice(selected?[selected]:[]));body.append(el('p',{},'ライフの上に加えるカードを1枚まで選べます。選ばないこともできます。'),grid);foot.append(el('button',{onClick:()=>this.a.effectChoice([])},'加えない'),confirm);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);update();
-};
-UI.prototype.teach119TriggerPrompt=function(g){
- this.close();const pending=g.pending,foe=g.sides.ai,cards=pending.options.map(id=>foe.field.find(card=>card.uid===id)).filter(Boolean);let selected=null;const isNegate=pending.stage==='negate',overlay=el('div',{class:'dialog'}),panel=el('section',{class:'redirect-flow teach119-flow'}),head=el('div',{class:'redirect-head'},el('small',{},`${pending.sourceName}　STEP ${isNegate?'1/2':'2/2'}`),el('h2',{},isNegate?'効果を無効にするキャラ':'K.O.するキャラ')),body=el('div',{class:'redirect-body'}),grid=el('div',{class:'teach119-card-grid'}),foot=el('div',{class:'redirect-footer'}),confirm=el('button',{class:'primary'},isNegate?'次へ':'K.O.して終了');
- const update=()=>grid.querySelectorAll('button').forEach(button=>button.classList.toggle('selected',button.dataset.id===selected));for(const card of cards){const button=el('button',{'data-id':card.uid},card.imageUrl?el('img',{src:card.imageUrl,alt:card.name}):'',el('strong',{},card.name),el('small',{},`コスト${card.cost} / パワー${card.power}`),el('span',{class:'teach119-check'},'✓'));button.addEventListener('click',()=>{selected=selected===card.uid?null:card.uid;update()});grid.append(button)}confirm.addEventListener('click',()=>this.a.effectChoice(selected?[selected]:[]));body.append(el('p',{},isNegate?'相手キャラ1枚までの効果を、このターン中無効にします。':'相手のコスト5以下のキャラ1枚までをK.O.します。'),cards.length?grid:el('p',{class:'empty-choice'},'選択できるキャラがいません'));foot.append(el('button',{onClick:()=>this.a.effectChoice([])},'選ばない'),confirm);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);update();
+const standardRender=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){standardRender.call(this,g);if(g.pending?.kind==='handDiscardChoice'&&g.pending.side==='player')this.handDiscardPrompt(g)};
+UI.prototype.handDiscardPrompt=function(g){
+ this.close();const pending=g.pending,hand=g.sides.player.hand;let selected=null;
+ const overlay=el('div',{class:'dialog'}),panel=el('section',{class:'redirect-flow discard-choice-flow'}),head=el('div',{class:'redirect-head'},el('small',{},pending.sourceName),el('h2',{},'捨てる手札を選択')),body=el('div',{class:'redirect-body'}),grid=el('div',{class:'discard-image-grid'}),foot=el('div',{class:'redirect-footer single'}),confirm=el('button',{class:'primary',disabled:'disabled'},'選択したカードを捨てる');
+ const update=()=>{confirm.disabled=!selected;grid.querySelectorAll('button').forEach(button=>button.classList.toggle('selected',button.dataset.id===selected))};
+ for(const card of hand){const button=el('button',{'data-id':card.uid},card.imageUrl?el('img',{src:card.imageUrl,alt:card.name}):'',el('strong',{},card.name),el('small',{},card.id||''),el('span',{class:'discard-check'},'✓'));button.addEventListener('click',()=>{selected=selected===card.uid?null:card.uid;update()});grid.append(button)}
+ confirm.addEventListener('click',()=>this.a.effectChoice([selected]));body.append(el('p',{},'ドロー処理が終わりました。トラッシュへ送るカードを1枚選んでください。'),grid);foot.append(confirm);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);update();
 };

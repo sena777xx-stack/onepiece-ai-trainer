@@ -1,6 +1,7 @@
-/* Hand: readable two-column vertical list */
-.hand{max-height:56dvh}.hand .cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:46dvh;overflow-y:auto;overflow-x:hidden;align-items:stretch;padding:3px}.hand .card{width:100%;height:112px;min-width:0;flex:none}.hand .card-name{font-size:.7rem}.hand .card-meta{font-size:.64rem}
-/* Life reveal */
-.life-peek-grid{grid-template-columns:repeat(5,76px);justify-content:start}.life-peek-grid .peek-card.back{background:repeating-linear-gradient(135deg,#3d215e 0 8px,#6b3a96 8px 16px)}
-/* Counter step */
-.counter-sheet{width:min(94vw,500px);max-height:84dvh}.counter-summary{display:grid;gap:5px;padding:11px;border:1px solid var(--line);border-radius:12px;background:#0b1524}.counter-summary strong{font-size:1rem}.counter-summary span{font-weight:800}.counter-summary .safe{color:var(--ok)}.counter-summary .short{color:var(--danger)}.counter-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:35dvh;overflow-y:auto;margin:12px 0}.counter-grid button{display:flex;justify-content:space-between;align-items:center;text-align:left;min-height:58px}.counter-grid button span{color:var(--gold);font-weight:900}.counter-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.counter-actions button{min-height:50px}
+.mat-zone.tappable{cursor:pointer;border-color:#8b9bb2}.mat-zone.tappable:active{background:#1a2b43;transform:scale(.98)}
+.zone-sheet{width:min(94vw,520px);max-height:82dvh}.zone-help{margin:4px 0 10px}
+.zone-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;max-height:34dvh;overflow:auto;padding:2px}
+.zone-card-grid button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:58px;padding:8px}
+.zone-card-grid button strong{font-size:.72rem;line-height:1.25}.zone-card-grid button small{color:var(--muted);margin-top:4px}
+.zone-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}.zone-actions button,.zone-tools button{font-size:.68rem;padding:8px 5px}
+.zone-tools{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.zone-close{width:100%;margin-top:10px}

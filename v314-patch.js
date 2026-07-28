@@ -1,23 +1,5 @@
-import{GameEngine}from'./game-engine-v3.js';
-import{UI}from'./ui-fixed.js?v=3122';
-const el=(tag,attrs={},...children)=>{const node=document.createElement(tag);for(const[key,value]of Object.entries(attrs)){if(key==='class')node.className=value;else if(key.startsWith('on'))node.addEventListener(key.slice(2).toLowerCase(),value);else if(value!==null&&value!==undefined)node.setAttribute(key,value)}for(const child of children.flat())node.append(child?.nodeType?child:document.createTextNode(child??''));return node};
-const standardEffectChoice=GameEngine.prototype.resolveTeachKoChoice;
-GameEngine.prototype.resolveTeachKoChoice=function(side,ids=[]){
- const pending=this.state.pending;
- if(pending?.kind!=='handDiscardChoice')return standardEffectChoice.call(this,side,ids);
- if(pending.side!==side)return false;
- const hand=this.state.sides[side].hand,chosen=[...new Set(ids)].map(id=>hand.find(card=>card.uid===id)).filter(Boolean).slice(0,pending.count||1);
- if(chosen.length!==(pending.count||1))return false;
- this.snapshot();
- for(const card of chosen){this.state.sides[side].hand=this.state.sides[side].hand.filter(item=>item.uid!==card.uid);this.state.sides[side].trash.push(card);this.log(`${card.name}をトラッシュへ送った`)}
- this.state.pending=null;this.state.phase='main';return true;
-};
-const standardRender=UI.prototype.renderGame;
-UI.prototype.renderGame=function(g){standardRender.call(this,g);if(g.pending?.kind==='handDiscardChoice'&&g.pending.side==='player')this.handDiscardPrompt(g)};
-UI.prototype.handDiscardPrompt=function(g){
- this.close();const pending=g.pending,hand=g.sides.player.hand;let selected=null;
- const overlay=el('div',{class:'dialog'}),panel=el('section',{class:'redirect-flow discard-choice-flow'}),head=el('div',{class:'redirect-head'},el('small',{},pending.sourceName),el('h2',{},'捨てる手札を選択')),body=el('div',{class:'redirect-body'}),grid=el('div',{class:'discard-image-grid'}),foot=el('div',{class:'redirect-footer single'}),confirm=el('button',{class:'primary',disabled:'disabled'},'選択したカードを捨てる');
- const update=()=>{confirm.disabled=!selected;grid.querySelectorAll('button').forEach(button=>button.classList.toggle('selected',button.dataset.id===selected))};
- for(const card of hand){const button=el('button',{'data-id':card.uid},card.imageUrl?el('img',{src:card.imageUrl,alt:card.name}):'',el('strong',{},card.name),el('small',{},card.id||''),el('span',{class:'discard-check'},'✓'));button.addEventListener('click',()=>{selected=selected===card.uid?null:card.uid;update()});grid.append(button)}
- confirm.addEventListener('click',()=>this.a.effectChoice([selected]));body.append(el('p',{},'ドロー処理が終わりました。トラッシュへ送るカードを1枚選んでください。'),grid);foot.append(confirm);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);update();
-};
+.trash-image-sheet{display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto auto;height:min(90dvh,760px);overflow:hidden}
+.trash-image-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;overflow-y:auto;padding:3px 3px 12px;-webkit-overflow-scrolling:touch}
+.trash-image-card{position:relative;display:grid;gap:5px;min-width:0;padding:5px;border:2px solid #53627b;border-radius:12px;background:#101c2e;color:#fff;text-align:left;overflow:hidden}
+.trash-image-card.selected{border-color:#ffbd22;box-shadow:0 0 0 2px #ffbd2244}.trash-image-card img,.trash-image-fallback{width:100%;aspect-ratio:.715;object-fit:cover;border-radius:8px;background:#1a2638}.trash-image-fallback{display:grid;place-items:center;padding:8px;text-align:center;font-size:.72rem}.trash-image-card img.image-error{display:none}
+.trash-image-card strong{font-size:.72rem;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.trash-image-card small{font-size:.58rem;color:#b8c4d5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.trash-selected-mark{display:none;position:absolute;top:10px;left:10px;width:30px;height:30px;border-radius:50%;background:#ffbd22;color:#101722;text-align:center;line-height:30px;font-weight:900;box-shadow:0 2px 8px #0008}.trash-image-card.selected .trash-selected-mark{display:block}
