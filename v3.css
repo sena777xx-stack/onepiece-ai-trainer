@@ -78,3 +78,9 @@
 .effect-target-grid img{width:100%;aspect-ratio:.715;object-fit:cover;border-radius:7px}
 .effect-target-grid strong{font-size:.7rem}.effect-target-grid small{color:var(--muted)}
 .effect-picker>button{width:100%;margin-top:8px}
+.redirect-sheet{width:min(94vw,540px);max-height:90dvh;overflow:auto}
+.redirect-targets{display:flex;gap:8px;overflow-x:auto;margin:10px 0 14px;padding:2px}
+.redirect-targets button{flex:0 0 96px;display:grid;gap:4px;padding:5px;text-align:left}
+.redirect-targets img{width:100%;aspect-ratio:.715;object-fit:cover;border-radius:7px}
+.redirect-targets strong{font-size:.68rem}.redirect-targets small{font-size:.58rem;color:var(--muted)}
+.redirect-sheet>button{width:100%;margin-top:8px}
