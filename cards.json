@@ -216,17 +216,18 @@
     ],
     "cost": 6,
     "power": 8000,
-    "counter": 1000,
+    "counter": 0,
     "traits": [
       "インペルダウン",
       "黒ひげ海賊団"
     ],
     "imageUrl": "https://xbdxqvbwmdrrewv2.public.blob.vercel-storage.com/cards/onepiece/a5567c30-5c2a-4a9f-ba6d-f5a1f4071bb2/thumb.webp",
-    "text": "黒ひげ海賊団の効果を持つキャラ。",
+    "text": "【登場時】自分の手札1枚を捨てることができる：自分のトラッシュからコスト6以下の特徴《黒ひげ海賊団》を持つカード1枚までを、ライフの上に表向きで加える。【トリガー】カード2枚を引く。",
     "effects": [
       {
         "timing": "trigger",
-        "action": "unsupported"
+        "action": "draw",
+        "value": 2
       }
     ]
   },
