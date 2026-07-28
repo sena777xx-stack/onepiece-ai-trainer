@@ -13,6 +13,8 @@ actions.hachinosuFinish=chosenUid=>{ui.close();engine.finishHachinosu('player',c
 actions.leaderRedirect=(discardUid,targetUid)=>{ui.close();const ok=engine.useTeachLeaderRedirect('player',discardUid,targetUid);render();ui.toast(ok?'選択したカードをトラッシュへ送りました':'リーダー効果を処理できませんでした')};
 actions.skipLeaderRedirect=()=>{ui.close();ui.defense(engine.state,true)};
 actions.effectChoice=ids=>{ui.close();engine.resolveTeachKoChoice('player',ids);render();maybeAi()};
+actions.teach10=targetUid=>{ui.close();engine.useTeach10('player',targetUid);render()};
+actions.engineSync=()=>engine.syncBurgessPower?.();
 actions.handNoticeContinue=()=>{ui.close();engine.resolveHandNotice();render();maybeAi()};
 actions.undo=()=>{ui.close();const ok=engine.undo();if(!ok){ui.toast('これ以上戻せません');return}ui.knownHandIds=new Set(engine.state.sides.player.hand.map(c=>c.uid));ui.lastPhase=engine.state.phase;render();maybeAi()};
 actions.attack=id=>{attacker=id;ui.close();const own=engine.state.sides.player,source=[own.leader,...own.field].find(c=>c.uid===id),power=(source?.power||0)+(source?.attachedDon||0)*1000+(source?.tempPower||0),foe=engine.state.sides.ai,candidates=[{kind:'leader',uid:foe.leader.uid,name:foe.leader.name,power:(foe.leader.power||0)+(foe.leader.tempPower||0)},...foe.field.filter(c=>c.rested).map(c=>({kind:'character',uid:c.uid,name:c.name,power:(c.power||0)+(c.tempPower||0)}))].filter(x=>x.power<=power);if(!candidates.length){ui.toast(`パワー${power}以下の攻撃対象がありません`);return}ui.targets(candidates)};
