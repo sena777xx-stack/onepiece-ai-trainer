@@ -1,7 +1,28 @@
-export const clone=v=>structuredClone(v);export const other=s=>s==='player'?'ai':'player';
-export const shuffle=a=>{const x=[...a];for(let i=x.length-1;i;i--){const j=Math.floor(Math.random()*(i+1));[x[i],x[j]]=[x[j],x[i]]}return x};
-export const legalPlay=(g,s,c)=>g.activeSide===s&&g.phase==='main'&&c.cost<=g.sides[s].don.active&&['character','event'].includes(c.type);
-export const legalAttack=(g,s,c)=>g.activeSide===s&&g.phase==='main'&&c.type!=='event'&&!c.rested&&!c.summoningSickness;
-export const attackTargets=(g,s)=>{const f=g.sides[other(s)];return[{kind:'leader',uid:f.leader.uid,name:f.leader.name},...f.field.filter(c=>c.rested).map(c=>({kind:'character',uid:c.uid,name:c.name}))]};
-export const counterOptions=(g,s)=>g.sides[s].hand.filter(c=>Number(c.counter)>0);export const blockers=(g,s)=>g.sides[s].field.filter(c=>!c.rested&&(c.keywords||[]).includes('blocker'));
-export const winner=g=>{for(const s of['player','ai'])if(!g.sides[s].deck.length||g.sides[s].defeated)return other(s);return null};
+# Ver3 ルール基盤
+
+基準: ONE PIECE CARD GAME Comprehensive Rules Version 1.2.0（2026-01-16）
+
+## 実装した基本進行
+
+- デッキ50枚、DON!!デッキ10枚、初手5枚、マリガン各1回
+- マリガン終了後にリーダーのライフ値だけデッキ上からライフへ配置
+- リフレッシュ → ドロー → DON!! → メイン → 終了のフェーズ進行
+- 先攻の最初のターンはドローなし、DON!!は1枚
+- それ以外のDON!!フェーズは可能な限り2枚追加
+- 両プレイヤーとも、自分の最初のターンはバトル不可
+- キャラクターは登場ターンに攻撃不可。ただし `rush` キーワードは例外
+- 攻撃対象は相手リーダーまたはレスト中の相手キャラクター
+- 攻撃 → ブロック → カウンター → ダメージ → バトル終了
+- 同値以上の攻撃側パワーで攻撃成功
+- リーダーダメージ時はライフ上から処理し、トリガーの使用・不使用を選択
+- キャラクターエリア5枚、ステージエリア1枚
+- キャラクターのバトル敗北をK.O.としてトラッシュへ
+- ライフ0のリーダーへのダメージ、またはデッキ0枚で敗北
+
+## 正式処理と手動操作
+
+通常の登場・攻撃・防御・ターン進行には正式ルール判定を適用します。デッキ・ライフ・トラッシュ画面からの直接移動は、未登録カード効果を再現するための手動操作で、ログに `[手動]` と記録します。
+
+## 今後のカード効果層
+
+カード固有の置換効果、永続効果、同時誘発の解決順、複雑な選択条件は、カードJSONと効果キューへ順次追加します。カードテキストが総合ルールと矛盾する場合はカードテキストを優先します。

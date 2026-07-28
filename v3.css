@@ -1,4 +1,102 @@
-import{UI}from'./ui-fixed.js?v=3122';
-const el=(tag,attrs={},...children)=>{const node=document.createElement(tag);for(const[key,value]of Object.entries(attrs)){if(key==='class')node.className=value;else if(key.startsWith('on'))node.addEventListener(key.slice(2).toLowerCase(),value);else if(value!==null&&value!==undefined)node.setAttribute(key,value)}for(const child of children.flat())node.append(child?.nodeType?child:document.createTextNode(child??''));return node};
-UI.prototype.defense=function(g,skipLeader=false){const s=g.sides.player,battle=g.pending,canUse=!skipLeader&&battle?.kind==='battle'&&battle.defendingSide==='player'&&s.leader.id==='OP16-080'&&s.leaderRedirectTurn!==g.turn&&s.hand.some(c=>(c.effects||[]).some(e=>e.timing==='trigger'));if(canUse)return this.leaderRedirect(g);return this.counterImagePrompt(g)};
-UI.prototype.counterImagePrompt=function(g){this.close();document.body.classList.add('hand-open');const battle=g.pending,attackSide=g.sides[battle.attackingSide],defenseSide=g.sides.player,attacker=attackSide.leader.uid===battle.attackerUid?attackSide.leader:attackSide.field.find(c=>c.uid===battle.attackerUid),target=battle.targetKind==='leader'?defenseSide.leader:defenseSide.field.find(c=>c.uid===battle.targetUid),counters=defenseSide.hand.filter(c=>c.counter>0),blockers=defenseSide.field.filter(c=>!c.rested&&(c.keywords||[]).includes('blocker')),selected=new Set();let blockerUid=null;const overlay=el('div',{class:'dialog'}),panel=el('section',{class:'redirect-flow counter-visual-flow'}),head=el('div',{class:'redirect-head'},el('small',{},'BATTLE'),el('h2',{},'カウンターを選択')),body=el('div',{class:'redirect-body'}),visual=el('div',{class:'attack-visual'}),summary=el('div',{class:'counter-summary'}),grid=el('div',{class:'counter-image-grid'}),foot=el('div',{class:'redirect-footer'});const cardVisual=(card,label,power)=>el('div',{class:'attack-card-visual'},el('span',{class:'attack-card-label'},label),card?.imageUrl?el('img',{src:card.imageUrl,alt:card.name}):el('div',{class:'missing-card-image'},card?.name||'カード'),el('b',{class:'power-badge'},String(power)));visual.append(cardVisual(attacker,'攻撃元',battle.power),el('div',{class:'attack-arrow'},'→'),cardVisual(target,'攻撃対象',battle.targetPower));const total=()=>[...selected].reduce((sum,id)=>sum+(counters.find(c=>c.uid===id)?.counter||0),0);const update=()=>{const targetPower=blockerUid?(defenseSide.field.find(c=>c.uid===blockerUid)?.power||battle.targetPower):battle.targetPower,needed=Math.max(0,battle.power-targetPower+1000),value=total();summary.replaceChildren(el('strong',{},`攻撃 ${battle.power} / 防御 ${targetPower}+${value}`),el('span',{class:value>=needed?'safe':'short'},value>=needed?'防御できます':`あと ${needed-value} 必要`));grid.querySelectorAll('.counter-image-card').forEach(b=>b.classList.toggle('selected',selected.has(b.dataset.id)));body.querySelectorAll('.blocker-choice').forEach(b=>b.classList.toggle('selected',b.dataset.id===blockerUid))};for(const card of counters){const button=el('button',{class:'counter-image-card','data-id':card.uid},card.imageUrl?el('img',{src:card.imageUrl,alt:card.name}):el('div',{class:'missing-card-image'},card.name),el('b',{class:'counter-value-badge'},`+${card.counter}`),el('span',{class:'counter-card-name'},card.name),el('span',{class:'counter-check'},'✓'));button.addEventListener('click',()=>{selected.has(card.uid)?selected.delete(card.uid):selected.add(card.uid);update()});grid.append(button)}body.append(visual,summary,el('p',{class:'zone-help'},'手札の画像をタップしてカウンターを選びます。'),grid);if(blockers.length){const blockerArea=el('div',{class:'blocker-list'},el('strong',{},'ブロッカー'));for(const card of blockers){const button=el('button',{class:'blocker-choice','data-id':card.uid,onClick:()=>{blockerUid=blockerUid===card.uid?null:card.uid;update()}},card.imageUrl?el('img',{src:card.imageUrl,alt:card.name}):'',el('span',{},card.name));blockerArea.append(button)}body.append(blockerArea)}foot.append(el('button',{onClick:()=>this.a.defend({})},'攻撃を受ける'),el('button',{class:'primary',onClick:()=>this.a.defend({blockerUid,counters:[...selected]})},'カウンター確定'));panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);update()};
+.brand small{font-size:0;color:transparent}.brand small::after{content:'ENGINE Ver3';font-size:.66rem;color:#f4b62b}
+.phase{text-transform:uppercase}.phase::before{content:'PHASE  ';opacity:.55}
+
+/* レスト状態：横向き・赤い縁・REST表示で即座に判別できるようにする */
+.card{transition:transform .18s ease,filter .18s ease,opacity .18s ease}
+.card.rested{
+  transform:rotate(90deg);
+  opacity:.82;
+  filter:saturate(.55) brightness(.72);
+  border:2px solid #ff647c;
+  box-shadow:0 0 0 2px #4d1220,0 0 16px #ff395e99;
+  z-index:2;
+}
+.card.rested::after{
+  content:'REST';
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%) rotate(-90deg);
+  padding:3px 7px;
+  border:1px solid #ffd4db;
+  border-radius:999px;
+  background:#a8102de8;
+  color:#fff;
+  font-size:.55rem;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-shadow:0 1px 2px #000;
+}
+.mat-cards .card.rested{margin-inline:11px}
+.card.active-locked::before{
+  content:'次回 ACTIVE×';
+  position:absolute;
+  right:2px;
+  top:2px;
+  z-index:3;
+  padding:2px 4px;
+  border-radius:4px;
+  background:#172033ee;
+  border:1px solid #8da2c2;
+  color:#dce8fa;
+  font-size:.42rem;
+  font-weight:900;
+  white-space:nowrap;
+}
+.card.has-image{padding:0;background:#111;overflow:hidden}
+.card-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.card.has-image .card-name,.card.has-image .card-meta{opacity:0}
+.deck-list-sheet{width:min(94vw,560px);max-height:92dvh;overflow:auto}
+.deck-image-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
+.deck-image-tile{position:relative;padding:0 0 7px;overflow:hidden;background:#0b1423;border:1px solid #42516a;border-radius:10px;color:#fff;text-align:left}
+.deck-image-tile img{width:100%;aspect-ratio:.715;object-fit:cover;display:block;background:#111}
+.deck-image-tile span,.deck-image-tile small{display:block;padding:4px 6px 0;line-height:1.2}
+.deck-image-tile span{font-size:12px;font-weight:700}
+.deck-image-tile small{font-size:10px;color:#aebbd0}
+.deck-count{position:absolute;right:4px;top:4px;padding:3px 7px;border-radius:999px;background:#d69909;color:#07111f;font-size:13px;z-index:2}
+.card-preview{width:min(88vw,340px);max-height:92dvh;overflow:auto;padding:16px;background:#111c2e;border:1px solid #52627d;border-radius:18px;color:#fff;text-align:center}
+.card-preview img{width:min(72vw,300px);max-height:65dvh;object-fit:contain;border-radius:10px}
+.card-preview p{white-space:pre-wrap;text-align:left;line-height:1.55}
+/* Ver3.3: readable one-row mobile hand */
+.hand{max-height:none;min-height:166px}
+.hand .cards{display:flex;grid-template-columns:none;gap:7px;min-height:136px;max-height:none;overflow-x:auto;overflow-y:hidden;align-items:center;padding:4px 6px 9px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.hand .card{flex:0 0 92px;width:92px;height:129px;min-width:92px;scroll-snap-align:start}
+.hand-wrap{width:min(92vw,520px)}
+.mulligan-sheet{width:min(94vw,520px);max-height:88dvh}
+.mulligan-cards{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.mulligan-cards .card{flex:0 0 104px;width:104px;height:146px;scroll-snap-align:center}
+.mulligan-help{margin:0 0 12px;color:var(--muted);font-size:.72rem;text-align:center}
+@media(max-width:390px){.hand-wrap{width:90vw}.hand .card{flex-basis:86px;width:86px;min-width:86px;height:121px}.mulligan-cards .card{flex-basis:96px;width:96px;height:135px}}
+.don-picker{text-align:center}
+.don-stepper{display:grid;grid-template-columns:72px 1fr 72px;align-items:center;gap:12px;margin:18px 0}
+.don-stepper button{min-height:58px;font-size:1.65rem;padding:8px}
+.don-value{display:grid;place-items:center;min-height:58px;border:1px solid var(--gold);border-radius:14px;background:#091322;color:var(--gold);font-size:2rem}
+.don-picker>button{width:100%;margin-top:8px}
+.effect-picker{width:min(94vw,520px);max-height:88dvh;overflow:auto}
+.effect-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-height:46dvh;overflow:auto;margin:12px 0}
+.effect-target-grid button{position:relative;display:grid;gap:4px;padding:6px;text-align:left}
+.effect-target-grid img{width:100%;aspect-ratio:.715;object-fit:cover;border-radius:7px}
+.effect-target-grid strong{font-size:.7rem}.effect-target-grid small{color:var(--muted)}
+.effect-picker>button{width:100%;margin-top:8px}
+.redirect-sheet{width:min(94vw,540px);max-height:90dvh;overflow:auto}
+.redirect-targets{display:flex;gap:8px;overflow-x:auto;margin:10px 0 14px;padding:2px}
+.redirect-targets button{flex:0 0 96px;display:grid;gap:4px;padding:5px;text-align:left}
+.redirect-targets img{width:100%;aspect-ratio:.715;object-fit:cover;border-radius:7px}
+.redirect-targets strong{font-size:.68rem}.redirect-targets small{font-size:.58rem;color:var(--muted)}
+.redirect-sheet>button{width:100%;margin-top:8px}
+.peek-card.front.has-card-image{padding:0;overflow:hidden;background:#101722}
+.peek-card-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;z-index:1}
+.peek-card.front.has-card-image>span{opacity:0}
+.peek-card.front.has-card-image>b{z-index:2}
+.life-reveal-sheet{width:min(90vw,360px);max-height:92dvh;overflow:auto;padding:18px;background:#111c2e;border:1px solid #52627d;border-radius:20px;color:#fff;text-align:center}
+.life-reveal-sheet>img{width:min(62vw,240px);max-height:55dvh;object-fit:contain;border-radius:10px}
+.life-reveal-sheet h2{margin-top:0}.life-reveal-sheet h3{margin-bottom:6px}.life-reveal-sheet p{text-align:left;white-space:pre-wrap;line-height:1.5;color:#ccd6e5}
+.life-reveal-sheet .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.life-reveal-sheet .actions button:only-child{grid-column:1/-1}
+.redirect-flow{display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(94vw,520px);height:min(88dvh,720px);overflow:hidden;background:#111c2e;border:1px solid #52627d;border-radius:20px;color:#fff}
+.redirect-head{padding:18px 18px 8px}.redirect-head small{color:var(--gold);font-weight:900}.redirect-head h2{margin:5px 0}
+.redirect-body{overflow-y:auto;padding:4px 18px 18px;-webkit-overflow-scrolling:touch}.redirect-body .effect-target-grid{max-height:none}
+.redirect-footer{display:grid;grid-template-columns:1fr 1.35fr;gap:9px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#0c1728;box-shadow:0 -8px 24px #0008}
+.redirect-footer button{min-height:52px}.discard-summary{padding:9px;border:1px solid var(--gold);border-radius:10px;background:#4b3812;color:#fff;font-weight:800}
+.redirect-footer.single{grid-template-columns:1fr}.hand-gain-flow{height:min(82dvh,650px)}
+.hand-gain-grid{display:flex;gap:10px;overflow-x:auto;padding:5px 2px 14px;scroll-snap-type:x mandatory}
+.hand-gain-card{flex:0 0 min(46vw,170px);display:grid;gap:5px;scroll-snap-align:center}.hand-gain-card img{width:100%;aspect-ratio:.715;object-fit:cover;border-radius:10px;border:1px solid #6d7d95}.hand-gain-card strong{font-size:.8rem}.hand-gain-card small{color:var(--muted)}
