@@ -1,2 +1,45 @@
 .brand small{font-size:0;color:transparent}.brand small::after{content:'ENGINE Ver3';font-size:.66rem;color:#f4b62b}
 .phase{text-transform:uppercase}.phase::before{content:'PHASE  ';opacity:.55}
+
+/* レスト状態：横向き・赤い縁・REST表示で即座に判別できるようにする */
+.card{transition:transform .18s ease,filter .18s ease,opacity .18s ease}
+.card.rested{
+  transform:rotate(90deg);
+  opacity:.82;
+  filter:saturate(.55) brightness(.72);
+  border:2px solid #ff647c;
+  box-shadow:0 0 0 2px #4d1220,0 0 16px #ff395e99;
+  z-index:2;
+}
+.card.rested::after{
+  content:'REST';
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%) rotate(-90deg);
+  padding:3px 7px;
+  border:1px solid #ffd4db;
+  border-radius:999px;
+  background:#a8102de8;
+  color:#fff;
+  font-size:.55rem;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-shadow:0 1px 2px #000;
+}
+.mat-cards .card.rested{margin-inline:11px}
+.card.active-locked::before{
+  content:'次回 ACTIVE×';
+  position:absolute;
+  right:2px;
+  top:2px;
+  z-index:3;
+  padding:2px 4px;
+  border-radius:4px;
+  background:#172033ee;
+  border:1px solid #8da2c2;
+  color:#dce8fa;
+  font-size:.42rem;
+  font-weight:900;
+  white-space:nowrap;
+}
