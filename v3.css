@@ -72,3 +72,9 @@
 .don-stepper button{min-height:58px;font-size:1.65rem;padding:8px}
 .don-value{display:grid;place-items:center;min-height:58px;border:1px solid var(--gold);border-radius:14px;background:#091322;color:var(--gold);font-size:2rem}
 .don-picker>button{width:100%;margin-top:8px}
+.effect-picker{width:min(94vw,520px);max-height:88dvh;overflow:auto}
+.effect-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-height:46dvh;overflow:auto;margin:12px 0}
+.effect-target-grid button{position:relative;display:grid;gap:4px;padding:6px;text-align:left}
+.effect-target-grid img{width:100%;aspect-ratio:.715;object-fit:cover;border-radius:7px}
+.effect-target-grid strong{font-size:.7rem}.effect-target-grid small{color:var(--muted)}
+.effect-picker>button{width:100%;margin-top:8px}
