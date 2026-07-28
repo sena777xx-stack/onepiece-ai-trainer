@@ -43,3 +43,17 @@
   font-weight:900;
   white-space:nowrap;
 }
+.card.has-image{padding:0;background:#111;overflow:hidden}
+.card-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.card.has-image .card-name,.card.has-image .card-meta{opacity:0}
+.deck-list-sheet{width:min(94vw,560px);max-height:92dvh;overflow:auto}
+.deck-image-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
+.deck-image-tile{position:relative;padding:0 0 7px;overflow:hidden;background:#0b1423;border:1px solid #42516a;border-radius:10px;color:#fff;text-align:left}
+.deck-image-tile img{width:100%;aspect-ratio:.715;object-fit:cover;display:block;background:#111}
+.deck-image-tile span,.deck-image-tile small{display:block;padding:4px 6px 0;line-height:1.2}
+.deck-image-tile span{font-size:12px;font-weight:700}
+.deck-image-tile small{font-size:10px;color:#aebbd0}
+.deck-count{position:absolute;right:4px;top:4px;padding:3px 7px;border-radius:999px;background:#d69909;color:#07111f;font-size:13px;z-index:2}
+.card-preview{width:min(88vw,340px);max-height:92dvh;overflow:auto;padding:16px;background:#111c2e;border:1px solid #52627d;border-radius:18px;color:#fff;text-align:center}
+.card-preview img{width:min(72vw,300px);max-height:65dvh;object-fit:contain;border-radius:10px}
+.card-preview p{white-space:pre-wrap;text-align:left;line-height:1.55}
