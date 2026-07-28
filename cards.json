@@ -326,21 +326,22 @@
     "cost": 1,
     "counter": 0,
     "traits": [
+      "王下七武海",
       "黒ひげ海賊団"
     ],
     "keywords": [
       "main"
     ],
     "imageUrl": "https://xbdxqvbwmdrrewv2.public.blob.vercel-storage.com/cards/onepiece/69edcce3-e0cf-4bc0-850c-425339639eb0/thumb.webp",
-    "text": "黒ひげ海賊団のイベント。",
+    "text": "【メイン】自分のリーダーが特徴《黒ひげ海賊団》を持つ場合、自分のトラッシュから「闇水」以外の【トリガー】を持つカード1枚までを、手札に加える。【トリガー】相手のリーダーかキャラ1枚までを、このターン中、効果を無効にする。",
     "effects": [
       {
         "timing": "onPlay",
-        "action": "unsupported"
+        "action": "darkWaterMainChoice"
       },
       {
         "timing": "trigger",
-        "action": "unsupported"
+        "action": "darkWaterNegateChoice"
       }
     ]
   },

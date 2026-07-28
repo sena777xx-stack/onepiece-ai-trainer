@@ -15,6 +15,7 @@ actions.skipLeaderRedirect=()=>{ui.close();ui.defense(engine.state,true)};
 actions.effectChoice=ids=>{ui.close();engine.resolveTeachKoChoice('player',ids);render();maybeAi()};
 actions.teach10=targetUid=>{ui.close();engine.useTeach10('player',targetUid);render()};
 actions.engineSync=()=>engine.syncBurgessPower?.();
+actions.darkWaterChoice=targetUid=>{ui.close();engine.resolveDarkWaterChoice('player',targetUid);render();maybeAi()};
 actions.borsalinoChoice=addLife=>{ui.close();engine.resolveBorsalinoChoice('player',addLife);render();maybeAi()};
 actions.sanjuanChoice=targetUid=>{ui.close();engine.resolveSanjuanChoice('player',targetUid);render();maybeAi()};
 actions.shiryuChoice=targetUid=>{ui.close();engine.resolveShiryuChoice('player',targetUid);render();maybeAi()};
