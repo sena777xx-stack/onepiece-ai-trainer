@@ -1,0 +1,11 @@
+export const clone=value=>structuredClone(value);
+export const other=side=>side==='player'?'ai':'player';
+export const shuffle=list=>{const result=[...list];for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]]}return result};
+export const isMain=g=>g.phase==='main'&&!g.pending&&!g.winner;
+export const legalPlay=(g,side,card)=>g.activeSide===side&&isMain(g)&&['character','event','stage'].includes(card.type)&&(card.type!=='event'||(card.keywords||[]).includes('main'))&&Number(card.cost||0)<=g.sides[side].don.active&&(card.type!=='character'||g.sides[side].field.length<5);
+export const legalAttack=(g,side,card)=>g.activeSide===side&&isMain(g)&&(g.turnsTaken?.[side]||0)>1&&['leader','character'].includes(card.type)&&!card.rested&&(!card.summoningSickness||(card.keywords||[]).includes('rush'));
+export const attackTargets=(g,side)=>{const foe=g.sides[other(side)];return[{kind:'leader',uid:foe.leader.uid,name:foe.leader.name},...foe.field.filter(c=>c.rested).map(c=>({kind:'character',uid:c.uid,name:c.name}))]};
+export const counterOptions=(g,side)=>g.sides[side].hand.filter(c=>Number(c.counter)>0);
+export const blockers=(g,side)=>g.sides[side].field.filter(c=>!c.rested&&(c.keywords||[]).includes('blocker'));
+export const winner=g=>{for(const side of['player','ai'])if(g.sides[side].defeated||g.sides[side].deck.length===0)return other(side);return null};
+export const RULE_LIMITS=Object.freeze({deck:50,donDeck:10,characters:5,stage:1,openingHand:5});

@@ -1,0 +1,2 @@
+.brand small{font-size:0;color:transparent}.brand small::after{content:'ENGINE Ver3';font-size:.66rem;color:#f4b62b}
+.phase{text-transform:uppercase}.phase::before{content:'PHASE  ';opacity:.55}
