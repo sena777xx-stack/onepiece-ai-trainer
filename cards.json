@@ -155,7 +155,12 @@
     ],
     "imageUrl": "https://xbdxqvbwmdrrewv2.public.blob.vercel-storage.com/cards/onepiece/9f99da36-41c9-4b69-92cd-200315c8ad00/thumb.webp",
     "text": "【アタック時】相手のキャラ1枚までを選ぶ。このキャラの元々のパワーは、このターン中、選んだキャラと同じパワーになる。【トリガー】カード1枚を引き、自分のトラッシュからコスト1の特徴《黒ひげ海賊団》を持つキャラカード1枚までを、登場させる。",
-    "effects": []
+    "effects": [
+      {
+        "timing": "trigger",
+        "action": "devonTrigger"
+      }
+    ]
   },
   {
     "id": "OP16-106",
