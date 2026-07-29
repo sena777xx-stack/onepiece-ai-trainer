@@ -220,8 +220,9 @@ GameEngine.prototype.playCard=async function(side,uid){
 
 const previousZoroEndTurn349=GameEngine.prototype.endTurn;
 GameEngine.prototype.endTurn=async function(side){
+  const canEnd=this.state.activeSide===side&&this.state.phase==='main'&&!this.state.pending;
   const result=await previousZoroEndTurn349.call(this,side);
-  if(!result)return result;
+  if(!canEnd)return result;
   const own=this.state.sides[side];
   for(const card of own.field){
     if(card.id==='OP13-037'){
