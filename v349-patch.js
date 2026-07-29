@@ -232,3 +232,111 @@ GameEngine.prototype.endTurn=async function(side){
   }
   return result;
 };
+
+
+function syncST31004Rush349(engine,side){
+  const own=engine.state.sides[side];
+  const attached=(own.leader.attachedDon||0)+own.field.reduce((sum,card)=>sum+(card.attachedDon||0),0);
+  for(const card of own.field){
+    if(card.id!=='ST31-004')continue;
+    card.keywords=Array.isArray(card.keywords)?card.keywords:[];
+    const hasRush=card.keywords.includes('rush');
+    if(attached>=3&&!hasRush)card.keywords.push('rush');
+    if(attached<3&&hasRush)card.keywords=card.keywords.filter(keyword=>keyword!=='rush');
+  }
+}
+
+const previousST31Play349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousST31Play349.call(this,side,uid);
+  if(!result)return result;
+  syncST31004Rush349(this,side);
+  if(source?.id!=='ST31-004')return result;
+  const own=this.state.sides[side],foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  const strawHatCount=[own.leader,...own.field,own.stage].filter(card=>card&&(card.traits||[]).includes('麦わらの一味')).length;
+  const options=foe.field.map(card=>card.uid);
+  if(!strawHatCount||!options.length){
+    this.log(`${source.name}の登場時：パワーを下げる対象なし`);
+    return result;
+  }
+  this.state.pending={kind:'st31004PowerChoice',side,sourceName:source.name,max:strawHatCount,options};
+  this.state.phase='effectChoice';
+  this.log(`${source.name}の登場時：最大${strawHatCount}回、相手キャラをパワー-1000`);
+  return result;
+};
+
+GameEngine.prototype.resolveST31004Choice=function(side,ids=[]){
+  const pending=this.state.pending;
+  if(pending?.kind!=='st31004PowerChoice'||pending.side!==side)return false;
+  const foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  const chosen=ids.filter(id=>pending.options.includes(id)).slice(0,pending.max);
+  for(const id of chosen){
+    const target=foe.field.find(card=>card.uid===id);
+    if(target)target.tempPower=(target.tempPower||0)-1000;
+  }
+  if(chosen.length)this.log(`${pending.sourceName}の登場時：相手キャラへ合計${chosen.length}回、パワー-1000`);
+  else this.log(`${pending.sourceName}の効果で対象を選びませんでした`);
+  this.state.pending=null;
+  this.state.phase='main';
+  return true;
+};
+
+const previousST31Attach349=GameEngine.prototype.attachDon;
+GameEngine.prototype.attachDon=function(side,uid,amount=1){
+  const result=previousST31Attach349.call(this,side,uid,amount);
+  if(result)syncST31004Rush349(this,side);
+  return result;
+};
+
+const previousST31Begin349=GameEngine.prototype.beginTurn;
+GameEngine.prototype.beginTurn=async function(side){
+  const result=await previousST31Begin349.call(this,side);
+  syncST31004Rush349(this,side);
+  return result;
+};
+
+const previousST31Attack349=GameEngine.prototype.declareAttack;
+GameEngine.prototype.declareAttack=async function(side,attackerUid,targetUid){
+  syncST31004Rush349(this,side);
+  return previousST31Attack349.call(this,side,attackerUid,targetUid);
+};
+
+const previousST31Render349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  previousST31Render349.call(this,g);
+  if(g.pending?.kind!=='st31004PowerChoice'||g.pending.side!=='player')return;
+  this.close();
+  const pending=g.pending,engineRef=window.__luffyEngine349,foe=g.sides.ai,chosen=[];
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>登場時効果</small><h2>ST31-004 ルフィ：対象を選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');
+  help.textContent=`最大${pending.max}回、相手キャラを選んでパワー-1000。同じキャラを複数回選べます。`;
+  const status=document.createElement('p');status.textContent=`選択 0 / ${pending.max}回`;
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  const refresh=()=>{
+    status.textContent=`選択 ${chosen.length} / ${pending.max}回`;
+    for(const button of grid.querySelectorAll('button')){
+      const count=chosen.filter(id=>id===button.dataset.id).length;
+      button.querySelector('small').textContent=`現在 ${(foe.field.find(card=>card.uid===button.dataset.id)?.power||0)+(foe.field.find(card=>card.uid===button.dataset.id)?.tempPower||0)} / 選択 ×${count}`;
+    }
+  };
+  for(const uid of pending.options){
+    const card=foe.field.find(item=>item.uid===uid);if(!card)continue;
+    const button=document.createElement('button');button.dataset.id=card.uid;
+    if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
+    const name=document.createElement('strong');name.textContent=card.name;button.append(name);
+    const note=document.createElement('small');button.append(note);
+    button.addEventListener('click',()=>{if(chosen.length<pending.max){chosen.push(card.uid);refresh()}});
+    grid.append(button);
+  }
+  body.append(help,status,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer';
+  const reset=document.createElement('button');reset.textContent='選択を戻す';reset.addEventListener('click',()=>{chosen.length=0;refresh()});
+  const confirm=document.createElement('button');confirm.textContent='効果を決定';confirm.addEventListener('click',()=>{this.close();engineRef?.resolveST31004Choice('player',chosen);this.renderGame(engineRef.state)});
+  const skip=document.createElement('button');skip.textContent='選ばず終了';skip.addEventListener('click',()=>{this.close();engineRef?.resolveST31004Choice('player',[]);this.renderGame(engineRef.state)});
+  foot.append(reset,confirm,skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);refresh();
+};
