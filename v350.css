@@ -1,21 +1,48 @@
-/* ST31 stage display: keep the physical card ratio inside the stage zone. */
+/* Stage cards use the same physical size as leader cards. */
+.stage-zone{
+  display:grid;
+  place-items:center;
+}
+.stage-zone .mat-label{
+  justify-self:start;
+}
 .stage-zone .card{
-  width:74px;
-  max-width:74px;
-  height:auto;
-  min-height:0;
-  aspect-ratio:0.715;
-  flex:0 0 auto;
-  justify-self:center;
-  align-self:center;
+  width:58px;
+  min-width:58px;
+  max-width:58px;
+  height:82px;
+  min-height:82px;
+  max-height:82px;
+  aspect-ratio:auto;
+  flex:0 0 58px;
+  margin:auto;
+  padding:0;
   overflow:hidden;
+  transform-origin:center;
 }
 .stage-zone .card-image{
-  width:100%;
-  height:100%;
-  object-fit:contain;
+  position:absolute;
+  inset:0;
+  width:58px;
+  height:82px;
+  object-fit:cover;
   object-position:center;
 }
-@media (max-width:420px){
-  .stage-zone .card{width:68px;max-width:68px}
+.stage-zone .card.rested{
+  margin:auto;
+}
+@media (max-width:380px){
+  .stage-zone .card{
+    width:53px;
+    min-width:53px;
+    max-width:53px;
+    height:75px;
+    min-height:75px;
+    max-height:75px;
+    flex-basis:53px;
+  }
+  .stage-zone .card-image{
+    width:53px;
+    height:75px;
+  }
 }
