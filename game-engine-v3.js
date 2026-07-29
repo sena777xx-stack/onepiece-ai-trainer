@@ -1,4 +1,4 @@
-import{shuffle,clone,other,legalPlay,legalAttack,attackTargets,winner,RULE_LIMITS}from'./rule-engine-v3.js?v=3430';import{resolveEffects}from'./effect-engine.js?v=3430';import{chooseDefense}from'./ai-engine.js?v=3430';let uid=0;const inst=c=>({...clone(c),uid:`v3c${++uid}`,rested:false,summoningSickness:false,attachedDon:0,tempPower:0});
+import{shuffle,clone,other,legalPlay,legalAttack,attackTargets,winner,RULE_LIMITS}from'./rule-engine-v3.js?v=3440';import{resolveEffects}from'./effect-engine.js?v=3440';import{chooseDefense}from'./ai-engine.js?v=3440';let uid=0;const inst=c=>({...clone(c),uid:`v3c${++uid}`,rested:false,summoningSickness:false,attachedDon:0,tempPower:0});
 export class GameEngine{
  constructor(cards,decks){this.cards=cards;this.decks=decks;this.history=[]}
  buildSide(side,d){return{side,leader:inst(this.cards[d.leader]),deck:shuffle(d.cards.flatMap(x=>Array.from({length:x.count},()=>inst(this.cards[x.id])))),hand:[],life:[],field:[],stage:null,trash:[],don:{total:0,active:0,rested:0},mulliganDone:false,defeated:false}}
