@@ -1,0 +1,9 @@
+/* Match the LIFE browser to the deck browser on mobile. */
+.life-image-grid{display:flex!important;height:151px!important;min-height:151px!important;max-height:151px!important;gap:6px!important;overflow-x:auto!important;overflow-y:hidden!important;align-items:flex-start!important;padding:2px 1px 7px!important;margin:0 0 8px!important}
+.life-image-wrap{position:relative!important;display:grid!important;grid-template-rows:112px 34px!important;gap:5px!important;flex:0 0 76px!important;width:76px!important;height:151px!important;min-height:151px!important;max-height:151px!important;overflow:visible!important}
+.life-image-card{position:relative!important;width:76px!important;height:112px!important;min-height:112px!important;max-height:112px!important;padding:4px!important;border-radius:8px!important;overflow:hidden!important;box-sizing:border-box!important}
+.life-image-card img,.life-image-fallback,.life-card-back{width:66px!important;height:102px!important;min-height:102px!important;max-height:102px!important;border-radius:6px!important;object-fit:contain!important}
+.life-image-select{position:static!important;display:block!important;width:76px!important;min-width:76px!important;height:34px!important;min-height:34px!important;margin:0!important;padding:5px 3px!important;font-size:.58rem!important}
+.life-image-select:disabled{display:block!important;opacity:.35!important}
+.life-image-sheet .zone-actions{position:relative!important;z-index:8!important;margin-top:0!important;background:#101b2d!important}
+.life-image-sheet{height:auto!important;max-height:92dvh!important;overflow-y:auto!important}
