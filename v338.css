@@ -1,0 +1,4 @@
+/* Give the LIFE card row enough room for card + selection button. */
+.life-image-grid{height:162px!important;min-height:162px!important;max-height:162px!important;padding-bottom:6px!important;margin-bottom:12px!important}
+.life-image-wrap{height:151px!important;min-height:151px!important;max-height:151px!important}
+.life-image-sheet .zone-actions{margin-top:2px!important}
