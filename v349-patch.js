@@ -5,7 +5,7 @@ const previousPlayCard349=GameEngine.prototype.playCard;
 GameEngine.prototype.playCard=async function(side,uid){
   const source=this.state.sides[side].hand.find(card=>card.uid===uid);
   const result=await previousPlayCard349.call(this,side,uid);
-  if(!result||side!=='player'||source?.id!=='OP01-016')return result;
+  if(!result||side!=='player'||!['OP01-016','EB02-017'].includes(source?.id))return result;
   const own=this.state.sides[side];
   const cards=own.deck.splice(Math.max(0,own.deck.length-5));
   this.state.pending={
