@@ -202,3 +202,32 @@ GameEngine.prototype.load=function(saved){
   }
   return result;
 };
+
+
+const previousZoroPlay349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousZoroPlay349.call(this,side,uid);
+  if(!result||source?.id!=='OP13-037')return result;
+  const own=this.state.sides[side],leaderTraits=own.leader.traits||[];
+  if(leaderTraits.includes('FILM')||leaderTraits.includes('麦わらの一味')){
+    const activeCount=Math.min(2,own.don.rested);
+    own.don.rested-=activeCount;own.don.active+=activeCount;
+    this.log(`${source.name}の登場時：DON!!を${activeCount}枚アクティブにした`);
+  }
+  return result;
+};
+
+const previousZoroEndTurn349=GameEngine.prototype.endTurn;
+GameEngine.prototype.endTurn=async function(side){
+  const result=await previousZoroEndTurn349.call(this,side);
+  if(!result)return result;
+  const own=this.state.sides[side];
+  for(const card of own.field){
+    if(card.id==='OP13-037'){
+      card.rested=false;
+      this.log(`${card.name}：ターン終了時にアクティブになった`);
+    }
+  }
+  return result;
+};
