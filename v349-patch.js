@@ -177,3 +177,28 @@ UI.prototype.renderGame=function(g){
   skip.addEventListener('click',()=>{this.close();engineRef?.resolveLuffySanjiChoice('player',null);this.renderGame(engineRef.state)});
   foot.append(skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
 };
+
+
+const previousChopperBeginTurn349=GameEngine.prototype.beginTurn;
+GameEngine.prototype.beginTurn=async function(side){
+  const result=await previousChopperBeginTurn349.call(this,side);
+  const player=this.state.sides.player;
+  if(side==='ai'){
+    for(const card of player.field){
+      if(card.id==='OP10-011')card.tempPower=(card.tempPower||0)+2000;
+    }
+    if(player.field.some(card=>card.id==='OP10-011'))this.log('トニートニー・チョッパー：相手ターン中パワー+2000');
+  }
+  return result;
+};
+
+const previousChopperLoad349=GameEngine.prototype.load;
+GameEngine.prototype.load=function(saved){
+  const result=previousChopperLoad349.call(this,saved);
+  if(this.state.activeSide==='ai'){
+    for(const card of this.state.sides.player.field){
+      if(card.id==='OP10-011'&&(card.tempPower||0)<2000)card.tempPower=2000;
+    }
+  }
+  return result;
+};
