@@ -620,5 +620,341 @@
     "cost": 2,
     "counter": 0,
     "effects": []
+  },
+  {
+    "id": "OP13-001",
+    "name": "モンキー・D・ルフィ",
+    "type": "leader",
+    "color": [
+      "red",
+      "green"
+    ],
+    "power": 5000,
+    "life": 4,
+    "traits": [
+      "超新星",
+      "麦わらの一味"
+    ],
+    "text": "【ドン!!×1】【相手のアタック時】アクティブのDON!!を任意の枚数レストにし、1枚につきリーダーか麦わらの一味のキャラ1枚までを、このバトル中パワー+2000。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP13-001.png",
+    "effects": []
+  },
+  {
+    "id": "OP01-016",
+    "name": "ナミ",
+    "type": "character",
+    "color": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 1000,
+    "traits": [
+      "麦わらの一味"
+    ],
+    "text": "【登場時】デッキの上から5枚を見て、「ナミ」以外の特徴《麦わらの一味》を持つカード1枚までを手札に加える。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP01-016.png",
+    "effects": []
+  },
+  {
+    "id": "EB02-017",
+    "name": "ナミ",
+    "type": "character",
+    "color": [
+      "green"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 1000,
+    "traits": [
+      "麦わらの一味"
+    ],
+    "text": "デッキ上から特徴《麦わらの一味》を持つカードを探す。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/EB02-017.png",
+    "effects": []
+  },
+  {
+    "id": "EB04-002",
+    "name": "ジュエリー・ボニー",
+    "type": "character",
+    "color": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 2000,
+    "traits": [
+      "超新星",
+      "ボニー海賊団"
+    ],
+    "text": "【登場時】デッキ上から対象カードを探して手札に加える。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/EB04-002.png",
+    "effects": []
+  },
+  {
+    "id": "ST21-003",
+    "name": "サンジ",
+    "type": "character",
+    "color": [
+      "red"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "counter": 2000,
+    "traits": [
+      "麦わらの一味"
+    ],
+    "text": "相手ターン中に使用できる防御効果を持つ。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/ST21-003.png",
+    "effects": []
+  },
+  {
+    "id": "OP10-011",
+    "name": "トニートニー・チョッパー",
+    "type": "character",
+    "color": [
+      "red"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "traits": [
+      "動物",
+      "麦わらの一味"
+    ],
+    "text": "特徴《麦わらの一味》を支援する効果を持つ。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP10-011.png",
+    "effects": []
+  },
+  {
+    "id": "OP13-037",
+    "name": "ロロノア・ゾロ",
+    "type": "character",
+    "color": [
+      "green"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "traits": [
+      "超新星",
+      "麦わらの一味"
+    ],
+    "text": "DON!!をアクティブにする効果を持つ。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP13-037.png",
+    "effects": []
+  },
+  {
+    "id": "OP13-023",
+    "name": "ウタ",
+    "type": "character",
+    "color": [
+      "green"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "traits": [
+      "FILM"
+    ],
+    "text": "【KO時】手札からコスト5以下のキャラ1枚までをレストで登場させる。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP13-023.png",
+    "effects": []
+  },
+  {
+    "id": "OP14-031",
+    "name": "ナミ",
+    "type": "character",
+    "color": [
+      "green"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "traits": [
+      "FILM",
+      "麦わらの一味"
+    ],
+    "keywords": [
+      "blocker"
+    ],
+    "text": "【ブロッカー】相手のキャラを妨害する効果を持つ。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP14-031.png",
+    "effects": []
+  },
+  {
+    "id": "OP13-027",
+    "name": "サンジ",
+    "type": "character",
+    "color": [
+      "green"
+    ],
+    "cost": 5,
+    "power": 7000,
+    "counter": 1000,
+    "traits": [
+      "FILM",
+      "麦わらの一味"
+    ],
+    "text": "自分のキャラを入れ替えて登場できる。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP13-027.png",
+    "effects": []
+  },
+  {
+    "id": "OP13-118",
+    "name": "モンキー・D・ルフィ",
+    "type": "character",
+    "color": [
+      "green"
+    ],
+    "cost": 6,
+    "power": 8000,
+    "counter": 1000,
+    "traits": [
+      "超新星",
+      "麦わらの一味"
+    ],
+    "text": "自分の麦わらの一味を参照して強化される。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP13-118.png",
+    "effects": []
+  },
+  {
+    "id": "OP15-032",
+    "name": "ブルック",
+    "type": "character",
+    "color": [
+      "green"
+    ],
+    "cost": 6,
+    "power": 8000,
+    "counter": 1000,
+    "traits": [
+      "麦わらの一味"
+    ],
+    "text": "相手のキャラをレストにする効果を持つ。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP15-032.png",
+    "effects": []
+  },
+  {
+    "id": "OP13-028",
+    "name": "シャンクス",
+    "type": "character",
+    "color": [
+      "green"
+    ],
+    "cost": 7,
+    "power": 9000,
+    "counter": 0,
+    "traits": [
+      "四皇",
+      "赤髪海賊団"
+    ],
+    "text": "大型キャラとして相手の盤面を制圧する。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP13-028.png",
+    "effects": []
+  },
+  {
+    "id": "EB04-007",
+    "name": "ロロノア・ゾロ",
+    "type": "character",
+    "color": [
+      "green"
+    ],
+    "cost": 7,
+    "power": 9000,
+    "counter": 0,
+    "traits": [
+      "超新星",
+      "麦わらの一味"
+    ],
+    "text": "相手の効果で場を離れにくく、条件を満たすとパワー10000になる。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/EB04-007.png",
+    "effects": []
+  },
+  {
+    "id": "OP12-037",
+    "name": "鬼気 九刀流 阿修羅 抜剣 亡者戯",
+    "type": "event",
+    "color": [
+      "green"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 0,
+    "traits": [
+      "麦わらの一味"
+    ],
+    "text": "【メイン】相手のキャラを妨害する。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP12-037.png",
+    "effects": []
+  },
+  {
+    "id": "OP13-040",
+    "name": "強ェとわかってんだから… 始めから全開だ!!!",
+    "type": "event",
+    "color": [
+      "green"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 0,
+    "traits": [
+      "超新星",
+      "麦わらの一味"
+    ],
+    "text": "【メイン】DON!!2枚をレストにし、相手のレストのコスト7以下のキャラ2枚までを次のリフレッシュでアクティブにしない。【カウンター】リーダーをこのバトル中+3000。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP13-040.png",
+    "effects": []
+  },
+  {
+    "id": "OP05-038",
+    "name": "舞踏石",
+    "type": "event",
+    "color": [
+      "green"
+    ],
+    "cost": 2,
+    "power": 0,
+    "counter": 0,
+    "traits": [
+      "ドンキホーテ海賊団"
+    ],
+    "text": "【カウンター】自分のリーダーかキャラを強化する。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP05-038.png",
+    "effects": []
+  },
+  {
+    "id": "OP08-036",
+    "name": "エレクトリカルルナ",
+    "type": "event",
+    "color": [
+      "green"
+    ],
+    "cost": 3,
+    "power": 0,
+    "counter": 0,
+    "traits": [
+      "ミンク族"
+    ],
+    "text": "相手のキャラをレストにして行動を制限する。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP08-036.png",
+    "effects": []
+  },
+  {
+    "id": "OP01-029",
+    "name": "ラディカルビーム!!",
+    "type": "event",
+    "color": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 0,
+    "traits": [
+      "麦わらの一味"
+    ],
+    "text": "【カウンター】リーダーかキャラ1枚をこのバトル中+2000。ライフ2枚以下ならさらに+2000。【トリガー】このターン中+1000。",
+    "imageUrl": "https://www.onepiece-cardgame.com/images/cardlist/card/OP01-029.png",
+    "effects": []
   }
 ]
