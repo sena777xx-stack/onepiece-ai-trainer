@@ -1,5 +1,5 @@
 /* Official card-back artwork, cropped in CSS from the official rule manual. */
-:root{--official-card-back:url('./assets/cards/official-card-back-source.png')}
+:root{--official-card-back:url('./official-card-back-source.png')}
 .deck-zone .pile-card,.peek-card.back,.life-card-back{background-color:#17143d!important;background-image:var(--official-card-back)!important;background-repeat:no-repeat!important;background-size:870.75% 358.21%!important;background-position:41.48% 34.30%!important;border-color:#88743c!important}
 .deck-zone .pile-card>span,.peek-card.back>span,.life-card-back>b{visibility:hidden}
 .deck-zone .pile-card>b,.peek-card.back>b,.life-card-back>span{visibility:visible;text-shadow:0 1px 3px #000}
