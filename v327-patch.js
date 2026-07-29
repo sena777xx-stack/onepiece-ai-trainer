@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js';import{UI}from'./ui-fixed.js?v=3122';
+import{GameEngine}from'./game-engine-v3.js?v=3430';import{UI}from'./ui-fixed.js?v=3430';
 const el=(tag,attrs={},...children)=>{const node=document.createElement(tag);for(const[key,value]of Object.entries(attrs)){if(key==='class')node.className=value;else if(key.startsWith('on'))node.addEventListener(key.slice(2).toLowerCase(),value);else if(value!==null&&value!==undefined)node.setAttribute(key,value)}for(const child of children.flat())node.append(child?.nodeType?child:document.createTextNode(child??''));return node};
 const normalizeShiryu=card=>{if(card?.id!=='OP16-108')return card;card.cost=6;card.power=8000;card.counter=0;card.text='【登場時】自分の手札1枚を捨てることができる：自分のトラッシュからコスト6以下の特徴《黒ひげ海賊団》を持つカード1枚までを、ライフの上に表向きで加える。【トリガー】カード2枚を引く。';card.effects=[{timing:'trigger',action:'draw',value:2}];return card};
 const normalizeState=state=>{if(!state)return;for(const side of['player','ai']){const s=state.sides[side];for(const card of [s.leader,...s.deck,...s.hand,...s.life,...s.field,...s.trash,s.stage].filter(Boolean))normalizeShiryu(card)}};

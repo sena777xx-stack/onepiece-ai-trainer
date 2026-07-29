@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js';import{UI}from'./ui-fixed.js?v=3122';
+import{GameEngine}from'./game-engine-v3.js?v=3430';import{UI}from'./ui-fixed.js?v=3430';
 const other=side=>side==='player'?'ai':'player';
 const el=(tag,attrs={},...children)=>{const node=document.createElement(tag);for(const[key,value]of Object.entries(attrs)){if(key==='class')node.className=value;else if(key.startsWith('on'))node.addEventListener(key.slice(2).toLowerCase(),value);else if(value!==null&&value!==undefined)node.setAttribute(key,value)}for(const child of children.flat())node.append(child?.nodeType?child:document.createTextNode(child??''));return node};
 GameEngine.prototype.syncBurgessPower=function(){if(!this.state)return;for(const side of['player','ai']){const bonus=Math.floor(this.state.sides[side].trash.length/4)*1000;for(const card of this.state.sides[side].field.filter(card=>card.id==='OP09-086')){card.tempPower=(card.tempPower||0)-(card.burgessPowerBonus||0)+bonus;card.burgessPowerBonus=bonus}}};

@@ -1,4 +1,4 @@
-import{UI}from'./ui-fixed.js?v=3122';
+import{UI}from'./ui-fixed.js?v=3430';
 const powerInfo=card=>{const base=Number(card?.power||0),delta=Number(card?.tempPower||0)+Number(card?.attachedDon||0)*1000;return{base,delta,current:base+delta}};
 const other=side=>side==='player'?'ai':'player';
 const costBonus=(g,side,card)=>card?.type==='character'&&g.activeSide===other(side)&&g.sides[side].leader.id==='OP16-080'?1:0;

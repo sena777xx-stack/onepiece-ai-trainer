@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js';import{UI}from'./ui-fixed.js?v=3122';
+import{GameEngine}from'./game-engine-v3.js?v=3430';import{UI}from'./ui-fixed.js?v=3430';
 const el=(tag,attrs={},...children)=>{const node=document.createElement(tag);for(const[key,value]of Object.entries(attrs)){if(key==='class')node.className=value;else if(key.startsWith('on'))node.addEventListener(key.slice(2).toLowerCase(),value);else if(value!==null&&value!==undefined)node.setAttribute(key,value)}for(const child of children.flat())node.append(child?.nodeType?child:document.createTextNode(child??''));return node};
 const normalizeBorsalino=card=>{if(card?.id!=='EB04-058')return card;card.cost=5;card.power=6000;card.counter=1000;card.traits=['エッグヘッド','海軍'];card.keywords=['blocker'];card.text='【ブロッカー】【登場時】自分のライフが2枚以下の場合、自分のデッキの上から1枚までを、ライフの上に加える。';card.effects=[{timing:'onPlay',action:'borsalinoLifeChoice'}];return card};
 const normalizeState=state=>{if(!state)return;for(const side of['player','ai']){const s=state.sides[side];for(const card of [s.leader,...s.deck,...s.hand,...s.life,...s.field,...s.trash,s.stage].filter(Boolean))normalizeBorsalino(card)}};
