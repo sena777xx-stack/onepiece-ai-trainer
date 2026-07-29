@@ -31,7 +31,7 @@ GameEngine.prototype.resolveLuffyNamiSearch=function(side,chosenUid=null){
   if(chosen){
     own.hand.push(chosen);
     this.log(`${chosen.name}を手札に加えた`);
-  }else this.log('ナミの効果でカードを加えませんでした');
+  }else this.log(`${pending.sourceName}の効果でカードを加えませんでした`);
   const rest=pending.cards.filter(card=>card.uid!==chosen?.uid);
   own.deck.unshift(...rest);
   this.state.pending=null;
