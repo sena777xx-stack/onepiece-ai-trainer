@@ -340,3 +340,86 @@ UI.prototype.renderGame=function(g){
   const skip=document.createElement('button');skip.textContent='選ばず終了';skip.addEventListener('click',()=>{this.close();engineRef?.resolveST31004Choice('player',[]);this.renderGame(engineRef.state)});
   foot.append(reset,confirm,skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);refresh();
 };
+
+
+const previousST31005Play349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousST31005Play349.call(this,side,uid);
+  if(!result||source?.id!=='ST31-005')return result;
+  const own=this.state.sides[side];
+  const cards=own.deck.splice(Math.max(0,own.deck.length-5));
+  this.state.pending={
+    kind:'luffyNamiSearch',side,sourceName:source.name,cards,
+    options:cards.filter(card=>(card.traits||[]).includes('麦わらの一味')).map(card=>card.uid),
+    help:'デッキの上から5枚を確認し、特徴《麦わらの一味》を持つカード1枚までを手札に加えます。'
+  };
+  this.state.phase='effectChoice';
+  this.log(`${source.name}の登場時：デッキ上から${cards.length}枚を確認`);
+  return result;
+};
+
+GameEngine.prototype.beginST31005DonChoice=function(side){
+  const own=this.state.sides[side],stage=own.stage;
+  if(this.state.activeSide!==side||this.state.phase!=='main'||this.state.pending||stage?.id!=='ST31-005'||stage.rested||own.don.rested<1)return false;
+  const options=[own.leader,...own.field].filter(card=>card.name==='モンキー・D・ルフィ').map(card=>card.uid);
+  if(!options.length){this.log('サウザンド・サニー号：付与できる「モンキー・D・ルフィ」がいません');return false}
+  this.snapshot();
+  this.state.pending={kind:'st31005DonChoice',side,sourceName:stage.name,options};
+  this.state.phase='effectChoice';
+  return true;
+};
+
+GameEngine.prototype.resolveST31005DonChoice=function(side,targetUid=null){
+  const pending=this.state.pending;
+  if(pending?.kind!=='st31005DonChoice'||pending.side!==side)return false;
+  const own=this.state.sides[side],stage=own.stage,target=[own.leader,...own.field].find(card=>card.uid===targetUid&&pending.options.includes(card.uid));
+  if(!target||stage?.id!=='ST31-005'||stage.rested||own.don.rested<1){
+    this.state.pending=null;this.state.phase='main';return false;
+  }
+  stage.rested=true;
+  own.don.rested-=1;
+  target.attachedDon=(target.attachedDon||0)+1;
+  syncST31004Rush349(this,side);
+  this.log(`${stage.name}：レストのDON!!1枚を${target.name}へ付与`);
+  this.state.pending=null;this.state.phase='main';
+  return true;
+};
+
+const previousST31005ShowCard349=UI.prototype.showCard;
+UI.prototype.showCard=function(side,card,g){
+  previousST31005ShowCard349.call(this,side,card,g);
+  const canUse=side==='player'&&card.id==='ST31-005'&&g.sides.player.stage?.uid===card.uid&&g.activeSide==='player'&&g.phase==='main'&&!g.pending&&!card.rested&&g.sides.player.don.rested>0;
+  if(!canUse)return;
+  const actions=this.modal?.querySelector('.actions');if(!actions)return;
+  const button=document.createElement('button');button.className='primary';button.textContent='起動メインを使う';
+  button.addEventListener('click',()=>{this.close();const engineRef=window.__luffyEngine349;if(engineRef?.beginST31005DonChoice('player'))this.renderGame(engineRef.state)});
+  actions.prepend(button);
+};
+
+const previousST31005Render349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  previousST31005Render349.call(this,g);
+  if(g.pending?.kind!=='st31005DonChoice'||g.pending.side!=='player')return;
+  this.close();
+  const pending=g.pending,engineRef=window.__luffyEngine349,own=g.sides.player;
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';head.innerHTML='<small>起動メイン</small><h2>DON!!の付与先を選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');help.textContent='レストのDON!!1枚を付与する「モンキー・D・ルフィ」を選びます。';
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  for(const uid of pending.options){
+    const card=[own.leader,...own.field].find(item=>item.uid===uid);if(!card)continue;
+    const button=document.createElement('button');button.dataset.id=card.uid;
+    if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
+    const name=document.createElement('strong');name.textContent=card===own.leader?'リーダー：'+card.name:card.name;button.append(name);
+    const note=document.createElement('small');note.textContent=`付与DON!! ${card.attachedDon||0}枚`;button.append(note);
+    button.addEventListener('click',()=>{this.close();engineRef?.resolveST31005DonChoice('player',card.uid);this.renderGame(engineRef.state)});
+    grid.append(button);
+  }
+  body.append(help,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer single';
+  const cancel=document.createElement('button');cancel.textContent='やめる';cancel.addEventListener('click',()=>{engineRef.state.pending=null;engineRef.state.phase='main';this.close();this.renderGame(engineRef.state)});
+  foot.append(cancel);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
