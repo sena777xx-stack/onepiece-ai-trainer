@@ -5,15 +5,18 @@ const previousPlayCard349=GameEngine.prototype.playCard;
 GameEngine.prototype.playCard=async function(side,uid){
   const source=this.state.sides[side].hand.find(card=>card.uid===uid);
   const result=await previousPlayCard349.call(this,side,uid);
-  if(!result||side!=='player'||!['OP01-016','EB02-017'].includes(source?.id))return result;
+  if(!result||side!=='player'||!['OP01-016','EB02-017','EB04-002'].includes(source?.id))return result;
   const own=this.state.sides[side];
-  const cards=own.deck.splice(Math.max(0,own.deck.length-5));
+  const isBonney=source.id==='EB04-002';
+  const lookCount=isBonney?4:5;
+  const cards=own.deck.splice(Math.max(0,own.deck.length-lookCount));
   this.state.pending={
     kind:'luffyNamiSearch',
     side,
     sourceName:source.name,
     cards,
-    options:cards.filter(card=>card.name!=='ナミ'&&(card.traits||[]).includes('麦わらの一味')).map(card=>card.uid)
+    options:cards.filter(card=>isBonney?(card.name!=='ジュエリー・ボニー'&&(card.traits||[]).some(trait=>['エッグヘッド','Egghead','麦わらの一味'].includes(trait))):(card.name!=='ナミ'&&(card.traits||[]).includes('麦わらの一味'))).map(card=>card.uid),
+    help:isBonney?'デッキの上から4枚を確認し、「ジュエリー・ボニー」以外の特徴《エッグヘッド》か《麦わらの一味》を持つカード1枚までを手札に加えます。':'デッキの上から5枚を確認し、「ナミ」以外の特徴《麦わらの一味》を持つカード1枚までを手札に加えます。'
   };
   this.state.phase='effectChoice';
   this.log(`${source.name}の登場時：デッキ上から${cards.length}枚を確認`);
@@ -49,11 +52,11 @@ UI.prototype.renderGame=function(g){
   panel.className='redirect-flow';
   const head=document.createElement('div');
   head.className='redirect-head';
-  head.innerHTML='<small>登場時効果</small><h2>ナミ：カードを選択</h2>';
+  head.innerHTML='<small>登場時効果</small><h2>'+pending.sourceName+'：カードを選択</h2>';
   const body=document.createElement('div');
   body.className='redirect-body';
   const help=document.createElement('p');
-  help.textContent='デッキの上から5枚を確認し、「ナミ」以外の特徴《麦わらの一味》を持つカード1枚までを手札に加えます。';
+  help.textContent=pending.help;
   const grid=document.createElement('div');
   grid.className='effect-target-grid';
   for(const card of pending.cards){
