@@ -262,7 +262,7 @@ GameEngine.prototype.playCard=async function(side,uid){
   }
   this.state.pending={kind:'st31004PowerChoice',side,sourceName:source.name,max:strawHatCount,options};
   this.state.phase='effectChoice';
-  this.log(`${source.name}の登場時：最大${strawHatCount}回、相手キャラをパワー-1000`);
+  this.log(`${source.name}の登場時：相手キャラ1枚までをパワー-${strawHatCount*1000}`);
   return result;
 };
 
@@ -422,4 +422,52 @@ UI.prototype.renderGame=function(g){
   const foot=document.createElement('div');foot.className='redirect-footer single';
   const cancel=document.createElement('button');cancel.textContent='やめる';cancel.addEventListener('click',()=>{engineRef.state.pending=null;engineRef.state.phase='main';this.close();this.renderGame(engineRef.state)});
   foot.append(cancel);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
+
+
+/* ST31-004 correction: choose only one opposing Character. */
+GameEngine.prototype.resolveST31004Choice=function(side,ids=[]){
+  const pending=this.state.pending;
+  if(pending?.kind!=='st31004PowerChoice'||pending.side!==side)return false;
+  const foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  const id=(Array.isArray(ids)?ids:[ids]).find(value=>pending.options.includes(value));
+  const target=foe.field.find(card=>card.uid===id);
+  if(target){
+    const reduction=pending.max*1000;
+    target.tempPower=(target.tempPower||0)-reduction;
+    this.log(`${pending.sourceName}の登場時：${target.name}をこのターン中パワー-${reduction}`);
+  }else this.log(`${pending.sourceName}の効果で対象を選びませんでした`);
+  this.state.pending=null;
+  this.state.phase='main';
+  return true;
+};
+
+const previousST31004SingleRender349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  previousST31004SingleRender349.call(this,g);
+  if(g.pending?.kind!=='st31004PowerChoice'||g.pending.side!=='player')return;
+  this.close();
+  const pending=g.pending,engineRef=window.__luffyEngine349,foe=g.sides.ai,reduction=pending.max*1000;
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>登場時効果</small><h2>ST31-004 ルフィ：対象を1枚選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');
+  help.textContent=`相手キャラ1枚までを、このターン中パワー-${reduction}します。（《麦わらの一味》${pending.max}枚）`;
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  for(const uid of pending.options){
+    const card=foe.field.find(item=>item.uid===uid);if(!card)continue;
+    const button=document.createElement('button');button.dataset.id=card.uid;
+    if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
+    const name=document.createElement('strong');name.textContent=card.name;button.append(name);
+    const note=document.createElement('small');note.textContent=`現在 ${card.power+(card.tempPower||0)} → ${card.power+(card.tempPower||0)-reduction}`;button.append(note);
+    button.addEventListener('click',()=>{this.close();engineRef?.resolveST31004Choice('player',[card.uid]);this.renderGame(engineRef.state)});
+    grid.append(button);
+  }
+  body.append(help,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer single';
+  const skip=document.createElement('button');skip.textContent='選ばず終了';
+  skip.addEventListener('click',()=>{this.close();engineRef?.resolveST31004Choice('player',[]);this.renderGame(engineRef.state)});
+  foot.append(skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
 };
