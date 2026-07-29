@@ -471,3 +471,23 @@ UI.prototype.renderGame=function(g){
   skip.addEventListener('click',()=>{this.close();engineRef?.resolveST31004Choice('player',[]);this.renderGame(engineRef.state)});
   foot.append(skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
 };
+
+
+/* OP14-022 Usopp: activate up to 2 DON!! at the end of its controller's turn. */
+const previousUsoppEndTurn349=GameEngine.prototype.endTurn;
+GameEngine.prototype.endTurn=async function(side){
+  const canEnd=this.state.activeSide===side&&this.state.phase==='main'&&!this.state.pending;
+  if(canEnd){
+    const own=this.state.sides[side],leaderTraits=own.leader.traits||[];
+    if(leaderTraits.includes('FILM')||leaderTraits.includes('麦わらの一味')){
+      for(const card of own.field){
+        if(card.id!=='OP14-022')continue;
+        const activeCount=Math.min(2,own.don.rested);
+        own.don.rested-=activeCount;
+        own.don.active+=activeCount;
+        this.log(`${card.name}のターン終了時：DON!!を${activeCount}枚アクティブにした`);
+      }
+    }
+  }
+  return previousUsoppEndTurn349.call(this,side);
+};
