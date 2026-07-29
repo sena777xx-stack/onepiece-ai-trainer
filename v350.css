@@ -1,0 +1,21 @@
+/* ST31 stage display: keep the physical card ratio inside the stage zone. */
+.stage-zone .card{
+  width:74px;
+  max-width:74px;
+  height:auto;
+  min-height:0;
+  aspect-ratio:0.715;
+  flex:0 0 auto;
+  justify-self:center;
+  align-self:center;
+  overflow:hidden;
+}
+.stage-zone .card-image{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center;
+}
+@media (max-width:420px){
+  .stage-zone .card{width:68px;max-width:68px}
+}
