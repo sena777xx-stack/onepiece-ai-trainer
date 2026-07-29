@@ -1,4 +1,4 @@
-import{UI}from'./ui-fixed.js?v=3440';
+import{UI}from'./ui-fixed.js?v=3441';
 const el=(tag,attrs={},...children)=>{const node=document.createElement(tag);for(const[key,value]of Object.entries(attrs)){if(key==='class')node.className=value;else if(key.startsWith('on'))node.addEventListener(key.slice(2).toLowerCase(),value);else if(value!==null&&value!==undefined)node.setAttribute(key,value)}for(const child of children.flat())node.append(child?.nodeType?child:document.createTextNode(child??''));return node};
 UI.prototype.showZone=function(side,zone,g){
  this.close();document.body.classList.remove('hand-open');
