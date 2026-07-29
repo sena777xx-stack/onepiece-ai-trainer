@@ -129,16 +129,20 @@
     ],
     "cost": 4,
     "power": 5000,
-    "counter": 1000,
+    "counter": 2000,
     "traits": [
       "ドンキホーテ海賊団"
     ],
-    "keywords": [
-      "blocker"
-    ],
+    "keywords": [],
     "imageUrl": "https://xbdxqvbwmdrrewv2.public.blob.vercel-storage.com/cards/onepiece/ea55851e-dcaa-4913-a36d-e9173cd39751/thumb.webp",
-    "text": "ブロッカー。",
-    "effects": []
+    "text": "【トリガー】自分のリーダーが多色の場合、カード2枚を引く。",
+    "effects": [
+      {
+        "timing": "trigger",
+        "action": "drawIfMulticolor",
+        "value": 2
+      }
+    ]
   },
   {
     "id": "OP16-104",

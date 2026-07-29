@@ -1,0 +1,6 @@
+import{GameEngine}from'./game-engine-v3.js';import{UI}from'./ui-fixed.js?v=3122';
+const normalizeBaby5=card=>{if(card?.id!=='OP12-112')return card;card.cost=4;card.power=5000;card.counter=2000;card.traits=['ドンキホーテ海賊団'];card.keywords=[];card.text='【トリガー】自分のリーダーが多色の場合、カード2枚を引く。';card.effects=[{timing:'trigger',action:'drawIfMulticolor',value:2}];return card};
+const normalizeState=state=>{if(!state)return;for(const side of['player','ai']){const s=state.sides[side];for(const card of [s.leader,...s.deck,...s.hand,...s.life,...s.field,...s.trash,s.stage].filter(Boolean))normalizeBaby5(card)}};
+const previousTrigger=GameEngine.prototype.resolveTrigger;GameEngine.prototype.resolveTrigger=async function(use){const card=normalizeBaby5(this.state.pending?.card),isBaby=card?.id==='OP12-112'&&Boolean(use),result=await previousTrigger.call(this,use);if(isBaby&&this.state.pending?.kind==='handNotice'){this.state.pending.returnPending=null;this.state.pending.returnPhase='main'}return result};
+const previousUseTrigger=GameEngine.prototype.useTrigger;GameEngine.prototype.useTrigger=function(side,id){normalizeBaby5(this.state.sides[side].life.find(card=>card.uid===id));return previousUseTrigger.call(this,side,id)};
+const previousRender=UI.prototype.renderGame;UI.prototype.renderGame=function(g){normalizeState(g);previousRender.call(this,g)};
