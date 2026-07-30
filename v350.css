@@ -99,3 +99,15 @@
   text-align:center;
   overflow-wrap:anywhere;
 }
+
+
+.versus .deck-tile>small{
+  display:block;
+  min-height:1.2em;
+  margin-top:3px;
+  color:#f4c542;
+  font-size:.72rem;
+  font-weight:700;
+  line-height:1.2;
+  text-align:center;
+}
