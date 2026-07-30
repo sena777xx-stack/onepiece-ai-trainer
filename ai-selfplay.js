@@ -1,5 +1,5 @@
 import{GameEngine}from'./game-engine-v3.js?v=3441';
-import{runAiTurn}from'./ai-engine.js?v=3465';
+import{runAiTurn}from'./ai-engine.js?v=3466';import{recordSelfPlayMatch}from'./ai-telemetry.js?v=3511';
 
 const flip=side=>side==='player'?'ai':side==='ai'?'player':side;
 const swapPerspective=state=>{
@@ -7,6 +7,7 @@ const swapPerspective=state=>{
   state.sides.player.side='player';state.sides.ai.side='ai';
   state.activeSide=flip(state.activeSide);state.firstPlayer=flip(state.firstPlayer);
   [state.turnsTaken.player,state.turnsTaken.ai]=[state.turnsTaken.ai,state.turnsTaken.player];
+  if(state._aiPlayedCards)[state._aiPlayedCards.player,state._aiPlayedCards.ai]=[state._aiPlayedCards.ai,state._aiPlayedCards.player];
   if(state.pending){
     for(const key of['side','attackingSide','defendingSide','resumeSide','targetSide'])if(state.pending[key])state.pending[key]=flip(state.pending[key]);
   }
@@ -64,6 +65,7 @@ export async function runSelfPlay(cards,deckLeft,deckRight,games=100,onProgress=
     if(engine.state.winner==='player')result.leftWins++;
     else if(engine.state.winner==='ai')result.rightWins++;
     else{result.draws++;result.stalls++}
+    if(engine.state.winner)recordSelfPlayMatch(engine.state);
     result.totalTurns+=Number(engine.state.turn||0);
     if(game%10===0||game===count-1){onProgress({...result,completed:game+1});await new Promise(resolve=>setTimeout(resolve,0))}
   }
