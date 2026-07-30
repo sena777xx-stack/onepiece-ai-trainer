@@ -2344,7 +2344,7 @@ const previousEffectChoiceBackRender349=UI.prototype.renderGame;
 UI.prototype.renderGame=function(g){
   const result=previousEffectChoiceBackRender349.call(this,g);
   const pending=g?.pending;
-  if(!pending||pending.side!=='player'||!/Choice$/.test(String(pending.kind||''))||pending.kind==='battle')return result;
+  if(!pending||pending.side!=='player'||!/Choice$/.test(String(pending.kind||''))||pending.kind==='battle'||pending.kind==='teachSearch3Choice')return result;
   const modal=this.modal;
   if(!modal||modal.querySelector('[data-effect-back-349]'))return result;
   const button=document.createElement('button');
