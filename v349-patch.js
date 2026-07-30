@@ -1197,8 +1197,8 @@ GameEngine.prototype.submitCounters=function(side,counterIds=[]){
 };
 
 const previousOP12037Defense349=UI.prototype.defense;
-UI.prototype.defense=function(g){
-  previousOP12037Defense349.call(this,g);
+UI.prototype.defense=function(g,...args){
+  previousOP12037Defense349.call(this,g,...args);
   const battle=g.pending,s=g.sides.player;
   if(battle?.kind!=='battle'||battle.defendingSide!=='player')return;
   for(const card of s.hand.filter(item=>item.id==='OP12-037')){
@@ -1553,8 +1553,8 @@ GameEngine.prototype.submitCounters=function(side,counterIds=[]){
   return previousOP13040CounterCost349.call(this,side,counterIds);
 };
 const previousOP13040CounterDefense349=UI.prototype.defense;
-UI.prototype.defense=function(g){
-  previousOP13040CounterDefense349.call(this,g);
+UI.prototype.defense=function(g,...args){
+  previousOP13040CounterDefense349.call(this,g,...args);
   const battle=g.pending,own=g.sides.player;
   if(battle?.kind!=='battle'||battle.defendingSide!=='player')return;
   for(const card of own.hand.filter(item=>item.id==='OP13-040')){
@@ -1607,8 +1607,8 @@ GameEngine.prototype.beginTurn=async function(side){
 
 /* Hard-disable paid counter Events when their DON!! cost cannot be paid. */
 const previousPaidCounterDefense349=UI.prototype.defense;
-UI.prototype.defense=function(g){
-  previousPaidCounterDefense349.call(this,g);
+UI.prototype.defense=function(g,...args){
+  previousPaidCounterDefense349.call(this,g,...args);
   const battle=g.pending,own=g.sides.player;
   if(battle?.kind!=='battle'||battle.step!=='counter'||battle.defendingSide!=='player')return;
   for(const card of own.hand.filter(item=>item.id==='OP13-040'||item.id==='OP12-037')){
