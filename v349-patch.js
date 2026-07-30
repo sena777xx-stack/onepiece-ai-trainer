@@ -681,3 +681,47 @@ UI.prototype.renderGame=function(g){
   cancel.addEventListener('click',()=>{engineRef?.cancelFullFieldTrashChoice('player');this.close();this.renderGame(engineRef.state)});
   foot.append(cancel);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
 };
+
+
+/* Search helper: inspect the current hand without resolving or cancelling the search. */
+const previousSearchHandRender349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  previousSearchHandRender349.call(this,g);
+  if(g.pending?.kind!=='luffyNamiSearch'||g.pending.side!=='player'||!this.modal)return;
+  const footer=this.modal.querySelector('.redirect-footer');
+  if(!footer||footer.querySelector('[data-search-hand]'))return;
+  const handButton=document.createElement('button');
+  handButton.dataset.searchHand='true';
+  handButton.textContent='手札を確認';
+  handButton.addEventListener('click',()=>{
+    this.close();
+    const overlay=document.createElement('div');overlay.className='dialog';
+    const panel=document.createElement('section');panel.className='redirect-flow';
+    const head=document.createElement('div');head.className='redirect-head';
+    const closeX=document.createElement('button');
+    closeX.type='button';closeX.textContent='×';closeX.setAttribute('aria-label','手札確認を閉じる');
+    closeX.style.cssText='position:absolute;right:18px;top:14px;border:0;background:transparent;color:#fff;font-size:32px;line-height:1;z-index:2';
+    head.style.position='relative';
+    head.innerHTML='<small>サーチ中</small><h2>現在の手札（'+g.sides.player.hand.length+'枚）</h2>';
+    head.append(closeX);
+    const body=document.createElement('div');body.className='redirect-body';
+    const help=document.createElement('p');help.textContent='確認だけの画面です。×または「サーチへ戻る」でカード選択に戻れます。';
+    const grid=document.createElement('div');grid.className='effect-target-grid';
+    for(const card of g.sides.player.hand){
+      const item=document.createElement('div');item.className='effect-target-card';
+      item.style.cssText='display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid #53627a;border-radius:12px;background:#101a2b';
+      if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;image.style.cssText='width:100%;height:auto;object-fit:contain;border-radius:8px';item.append(image)}
+      const name=document.createElement('strong');name.textContent=card.name;item.append(name);
+      const note=document.createElement('small');note.textContent='コスト '+(card.cost??'-')+' / カウンター '+(card.counter||0);item.append(note);
+      grid.append(item);
+    }
+    if(!g.sides.player.hand.length){const empty=document.createElement('p');empty.textContent='手札はありません。';grid.append(empty)}
+    body.append(help,grid);
+    const foot=document.createElement('div');foot.className='redirect-footer single';
+    const back=document.createElement('button');back.className='primary';back.textContent='サーチへ戻る';
+    const returnToSearch=()=>{this.close();this.renderGame(g)};
+    back.addEventListener('click',returnToSearch);closeX.addEventListener('click',returnToSearch);
+    foot.append(back);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+  });
+  footer.prepend(handButton);
+};
