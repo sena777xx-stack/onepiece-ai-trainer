@@ -20,6 +20,11 @@ GameEngine.prototype.playCard=async function(side,uid){
   };
   this.state.phase='effectChoice';
   this.log(`${source.name}の登場時：デッキ上から${cards.length}枚を確認`);
+  if(side==='ai'){
+    const chosen=cards.filter(card=>this.state.pending?.options?.includes(card.uid))
+      .sort((a,b)=>(Number(b.counter||0)-Number(a.counter||0))||(Number(b.cost||0)-Number(a.cost||0))||(Number(b.power||0)-Number(a.power||0)))[0];
+    this.resolveLuffyNamiSearch('ai',chosen?.uid||null);
+  }
   return result;
 };
 
