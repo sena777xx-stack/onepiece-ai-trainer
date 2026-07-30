@@ -2153,3 +2153,31 @@ UI.prototype.renderGame=function(g){
   }
   body.append(grid);panel.append(head,body);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
 };
+
+
+// Start screen leader previews: follow the currently selected player and AI decks.
+const previousRenderHomeLeaderPreview349=UI.prototype.renderHome;
+UI.prototype.renderHome=function(hasSave,decks={}){
+  previousRenderHomeLeaderPreview349.call(this,hasSave,decks);
+  const tiles=[...this.root.querySelectorAll('.versus .deck-tile')];
+  const leaders=[
+    {tile:tiles[0],src:decks.playerLeaderImage,name:decks.playerLeaderName||decks.playerName||'PLAYER'},
+    {tile:tiles[1],src:decks.aiLeaderImage,name:decks.aiLeaderName||decks.aiName||'AI'}
+  ];
+  for(const leader of leaders){
+    if(!leader.tile||!leader.src)continue;
+    const frame=document.createElement('div');
+    frame.className='home-leader-preview';
+    Object.assign(frame.style,{width:'min(22vw,96px)',aspectRatio:'5 / 7',margin:'10px auto 7px',borderRadius:'9px',overflow:'hidden',border:'2px solid rgba(245,190,45,.75)',background:'#080d17',boxShadow:'0 7px 18px rgba(0,0,0,.35)',flex:'0 0 auto'});
+    const image=document.createElement('img');
+    image.src=leader.src;
+    image.alt=leader.name;
+    image.loading='eager';
+    Object.assign(image.style,{display:'block',width:'100%',height:'100%',objectFit:'contain'});
+    image.addEventListener('error',()=>frame.remove(),{once:true});
+    frame.append(image);
+    const title=leader.tile.querySelector('strong');
+    leader.tile.insertBefore(frame,title||null);
+    Object.assign(leader.tile.style,{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',minWidth:'0'});
+  }
+};
