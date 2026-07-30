@@ -1623,3 +1623,22 @@ UI.prototype.defense=function(g){
     cost.textContent=usable?'使用コスト：DON!!1枚':'DON!!不足・使用不可';
   }
 };
+
+
+/* Remove unpaid counter Events before the defense picker builds its choices. */
+const previousPaidCounterFilteredDefense349=UI.prototype.defense;
+UI.prototype.defense=function(g,...args){
+  const battle=g.pending,own=g.sides.player;
+  const mustHide=battle?.kind==='battle'&&battle.step==='counter'&&battle.defendingSide==='player'
+    &&(battle.targetKind!=='leader'||own.don.active<1);
+  const hidden=[];
+  if(mustHide){
+    for(const card of own.hand){
+      if(card.id!=='OP13-040'&&card.id!=='OP12-037')continue;
+      hidden.push([card,card.counter]);
+      card.counter=0;
+    }
+  }
+  try{return previousPaidCounterFilteredDefense349.call(this,g,...args)}
+  finally{for(const [card,counter] of hidden)card.counter=counter}
+};
