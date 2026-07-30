@@ -1797,3 +1797,47 @@ UI.prototype.renderGame=function(g){
   }
   panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
 };
+
+
+/* Common effect-target picker: always show the actual opposing card image. */
+UI.prototype.effectTargets=function(title,items){
+  this.close();
+  const engineRef=window.__luffyEngine349;
+  const allCards=[];
+  for(const sideName of ['player','ai']){
+    const side=engineRef?.state?.sides?.[sideName];if(!side)continue;
+    if(side.leader)allCards.push(side.leader);
+    if(side.stage)allCards.push(side.stage);
+    if(Array.isArray(side.field))allCards.push(...side.field);
+  }
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  const small=document.createElement('small');small.textContent='効果対象の選択';
+  const heading=document.createElement('h2');heading.textContent=title;
+  head.append(small,heading);
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');help.textContent='画像をタップして、効果を適用する相手のカードを選んでください。';
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  for(const item of items){
+    const card=allCards.find(candidate=>candidate.uid===item.uid)||item;
+    const button=document.createElement('button');button.dataset.id=item.uid;
+    if(card.imageUrl){
+      const image=document.createElement('img');image.src=card.imageUrl;image.alt=(card.name||item.name)+'のカード画像';image.loading='eager';button.append(image);
+    }
+    const name=document.createElement('strong');name.textContent=card.name||item.name||'対象カード';button.append(name);
+    const details=[];
+    const cost=item.cost??card.cost;
+    const power=(item.power??card.power);
+    if(cost!==undefined&&cost!==null)details.push('コスト '+cost);
+    if(power!==undefined&&power!==null)details.push('パワー '+power);
+    if(details.length){const note=document.createElement('small');note.textContent=details.join(' / ');button.append(note)}
+    button.addEventListener('click',()=>{this.close();this.a.effectTarget(item.uid)});
+    grid.append(button);
+  }
+  if(!items.length){const empty=document.createElement('p');empty.textContent='選択できるカードがありません。';grid.append(empty)}
+  body.append(help,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer single';
+  const close=document.createElement('button');close.textContent='閉じる';close.addEventListener('click',()=>this.close());foot.append(close);
+  panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
