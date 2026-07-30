@@ -2346,3 +2346,38 @@ UI.prototype.renderGame=function(g){
   else modal.querySelector('section')?.append(button);
   return result;
 };
+
+
+/* Show actual Leader/Character cards while choosing an attack target. */
+UI.prototype.targets=function(items){
+  this.close();
+  const engine=window.__luffyEngine349;
+  const foe=engine?.state?.sides?.ai;
+  const cards=(items||[]).map(item=>{
+    const card=item.kind==='leader'?foe?.leader:foe?.field?.find(candidate=>candidate.uid===item.uid);
+    return{...item,card};
+  });
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow attack-target-picker';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>アタック</small><h2>攻撃対象を選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');help.textContent='カード画像を確認して、攻撃する対象を選んでください。';
+  const grid=document.createElement('div');grid.className='effect-target-grid attack-target-grid';
+  for(const item of cards){
+    const button=document.createElement('button');button.type='button';
+    const card=item.card;
+    if(card?.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name||item.name;button.append(image)}
+    const name=document.createElement('strong');name.textContent=item.kind==='leader'?('リーダー：'+(card?.name||item.name)):(card?.name||item.name);button.append(name);
+    const info=document.createElement('small');
+    const power=Number(card?.power||0)+Number(card?.tempPower||0)+Number(card?.attachedDon||0)*1000;
+    info.textContent='パワー '+power+(item.kind==='character'?'・レスト':'');
+    button.append(info);
+    button.addEventListener('click',()=>this.a.target(item.uid));
+    grid.append(button);
+  }
+  const foot=document.createElement('div');foot.className='redirect-footer single';
+  const back=document.createElement('button');back.type='button';back.textContent='戻る';back.addEventListener('click',()=>this.close());
+  foot.append(back);body.append(help,grid);panel.append(head,body,foot);overlay.append(panel);
+  this.modal=overlay;document.body.append(overlay);
+};
