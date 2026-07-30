@@ -21,6 +21,15 @@ const usefulMainEvent=(g,card)=>{
   }
   if(leader!=='OP13-001')return card.type!=='event';
   if(card.type==='character'){
+    if(card.id==='ST21-003'){
+      const activeBlockers=foe.field.filter(target=>!target.rested&&(target.keywords||[]).includes('blocker')).length;
+      const readyAttackers=[own.leader,...own.field].filter(target=>legalAttack(g,'ai',target));
+      const attacksNeeded=Math.max(1,foe.life.length+1);
+      const donAfterPlay=Math.max(0,own.don.active-Number(card.cost||0));
+      const leaderPower=Number(foe.leader?.power||0)+Number(foe.leader?.tempPower||0);
+      const canReachLeader=readyAttackers.filter(target=>battlePower(target)+donAfterPlay*1000>=leaderPower).length>=attacksNeeded;
+      return foe.life.length<=1&&activeBlockers>0&&readyAttackers.length>=attacksNeeded&&canReachLeader;
+    }
     const keepForDefense=Number(card.counter||0)>=2000&&own.life.length<=2&&own.hand.length<=3&&own.field.length>=2;
     if(keepForDefense&&!['OP10-011','OP14-031'].includes(card.id))return false;
     if(['OP01-016','EB02-017','EB04-002'].includes(card.id)&&own.deck.length<5)return false;
@@ -81,7 +90,7 @@ const playScore=(g,card)=>{
   if(card.id==='OP10-011')return 112+(own.life.length<=2?45:0);
   if(card.id==='OP15-032')return 84+(foe.field.some(target=>!target.rested)?24:0);
   if(card.id==='EB04-007')return 105+(foe.field.some(target=>(target.power||0)+(target.tempPower||0)>=8000)?38:0)+(own.life.length<=2?15:0);
-  if(card.id==='ST21-003')return own.life.length<=2?58:86;
+  if(card.id==='ST21-003')return foe.life.length<=1?220:-1000;
   if(card.id==='OP12-037'){
     const targets=foe.field.filter(c=>!c.rested).length+Math.min(2,foe.don.active);
     return targets>=2?82:35;
