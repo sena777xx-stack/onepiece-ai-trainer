@@ -2,6 +2,8 @@
 const style360=document.createElement('style');
 style360.textContent=`
 .dialog{
+  position:fixed!important;
+  inset:0!important;
   z-index:2147483647!important;
   pointer-events:auto!important;
   isolation:isolate!important;
