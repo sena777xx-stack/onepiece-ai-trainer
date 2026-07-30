@@ -433,29 +433,69 @@ const defenseHandKeepValue=card=>{
 };
 const blockerSacrificeValue=card=>Number(card.cost||0)*1.5+Number(card.power||0)/2000+((card.effects||[]).some(effect=>effect.timing==='onKO')?-5:0);
 export function chooseDefense(g,s,a){
-  const own=g.sides[s],policy=s==='ai'?getAiPolicyBias(g):{safety:0},needed=Math.max(0,Number(a.power||0)-Number(a.targetPower||0)+1000);
+  const own=g.sides[s],policy=s==='ai'?getAiPolicyBias(g):{safety:0};
+  const needed=Math.max(0,Number(a.power||0)-Number(a.targetPower||0)+1000);
   if(needed<=0)return{counters:[]};
-  const attackingSide=s==='player'?'ai':'player',attacker=[g.sides[attackingSide].leader,...g.sides[attackingSide].field].find(card=>card.uid===a.attackerUid);
+
+  const attackingSide=s==='player'?'ai':'player',enemy=g.sides[attackingSide];
+  const attacker=[enemy.leader,...enemy.field].find(card=>card.uid===a.attackerUid);
   const target=a.targetKind==='leader'?own.leader:own.field.find(card=>card.uid===a.targetUid);
   const doubleAttack=(attacker?.keywords||[]).includes('doubleAttack')||(attacker?.keywords||[]).includes('double attack');
+  const remainingAttackers=[enemy.leader,...enemy.field].filter(card=>card.uid!==a.attackerUid&&legalAttack(g,attackingSide,card)).length;
+  const hitDamage=doubleAttack?2:1;
+  const lifeAfterHit=Math.max(0,own.life.length-hitDamage);
+  const lethalFollowup=own.life.length===0||hitDamage>own.life.length||(lifeAfterHit===0&&remainingAttackers>0);
+  const mustGuard=a.targetKind==='leader'&&lethalFollowup;
+
   const targetHasKoValue=Boolean(target&&(target.effects||[]).some(effect=>effect.timing==='onKO')&&(target.effectsNegatedThroughTurn??target.effectsNegatedTurn??-1)<g.turn);
+  const targetIsBlocker=Boolean((target?.keywords||[]).includes('blocker'));
+  const targetBoardValue=target?Number(target.cost||0)*1.5+Number(target.power||0)/2000+(targetIsBlocker?5:0)-(targetHasKoValue?5:0):0;
+
   if(a.targetKind==='character'&&targetHasKoValue&&own.life.length>0)return{counters:[]};
-  if(a.targetKind==='leader'&&own.life.length>=3&&!doubleAttack&&needed<=3000&&policy.safety<12)return{counters:[]};
-  const availableBlockers=blockers(g,s).sort((x,y)=>blockerSacrificeValue(x)-blockerSacrificeValue(y)||String(x.id).localeCompare(String(y.id)));
-  const mustGuard=a.targetKind==='leader'&&(own.life.length<=1||doubleAttack);
-  if(availableBlockers.length&&a.targetKind==='leader'&&(mustGuard||(own.life.length===2&&needed>=3000)||needed>=5000))return{blockerUid:availableBlockers[0].uid,counters:[]};
-  const options=counterOptions(g,s).slice(0,14),floor=own.life.length<=1?0:(own.life.length===2?1:2),maxUse=Math.max(0,own.hand.length-floor);
+  if(a.targetKind==='character'&&targetBoardValue<4&&needed>=2000)return{counters:[]};
+
+  const futureReserve=Math.min(3,remainingAttackers);
+  const baseFloor=own.life.length<=1?futureReserve:own.life.length===2?Math.max(1,futureReserve-1):2;
+  const options=counterOptions(g,s).slice(0,14),maxUse=Math.max(0,own.hand.length-baseFloor);
   let best=null;
   const limit=1<<options.length;
   for(let mask=1;mask<limit;mask++){
     let total=0,count=0,loss=0,ids=[];
     for(let i=0;i<options.length;i++)if(mask&(1<<i)){
-      total+=Number(options[i].counter||0);count++;loss+=defenseHandKeepValue(options[i]);ids.push(options[i].uid);
+      total+=Number(options[i].counter||0);
+      count++;
+      loss+=defenseHandKeepValue(options[i]);
+      ids.push(options[i].uid);
     }
     if(count>maxUse||total<needed)continue;
-    const waste=(total-needed)/1000,candidate={ids,total,count,loss,score:loss+waste*1.7+count*.45};
-    if(!best||candidate.score<best.score||(candidate.score===best.score&&candidate.total<best.total)||(candidate.score===best.score&&candidate.total===best.total&&candidate.ids.join().localeCompare(best.ids.join())<0))best=candidate;
+    const waste=(total-needed)/1000;
+    const candidate={ids,total,count,loss,score:loss+waste*1.9+count*.55};
+    if(!best||candidate.score<best.score||
+       (candidate.score===best.score&&candidate.total<best.total)||
+       (candidate.score===best.score&&candidate.total===best.total&&candidate.ids.join().localeCompare(best.ids.join())<0))best=candidate;
   }
-  if(!mustGuard&&a.targetKind==='leader'&&own.life.length>=2&&best?.score>Math.max(5,10-policy.safety*.3))return{counters:[]};
+
+  const availableBlockers=blockers(g,s).sort((x,y)=>blockerSacrificeValue(x)-blockerSacrificeValue(y)||String(x.id).localeCompare(String(y.id)));
+  const cheapestBlocker=availableBlockers[0];
+  if(cheapestBlocker&&a.targetKind==='leader'){
+    const blockCost=blockerSacrificeValue(cheapestBlocker);
+    const counterCost=best?best.score:Infinity;
+    const useBlocker=mustGuard&&(counterCost===Infinity||needed>=5000||blockCost<=counterCost+1.5)||
+      (doubleAttack&&own.life.length<=2&&blockCost<=counterCost);
+    if(useBlocker)return{blockerUid:cheapestBlocker.uid,counters:[]};
+  }
+
+  if(a.targetKind==='leader'&&!mustGuard){
+    if(own.life.length>=3&&!doubleAttack&&needed<=4000&&policy.safety<15)return{counters:[]};
+    if(lifeAfterHit>=1&&remainingAttackers===0&&needed>=3000)return{counters:[]};
+    const takeThreshold=Math.max(4,9-policy.safety*.25)+(remainingAttackers?2:0);
+    if(!best||best.score>takeThreshold)return{counters:[]};
+  }
+
+  if(a.targetKind==='character'&&!mustGuard){
+    const protectThreshold=targetBoardValue+(targetIsBlocker&&own.life.length<=2?4:0);
+    if(!best||best.score>protectThreshold)return{counters:[]};
+  }
+
   return{counters:best?.ids||[]};
 }
