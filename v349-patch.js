@@ -1265,3 +1265,50 @@ UI.prototype.renderGame=function(g){
   confirm.addEventListener('click',()=>{this.close();engineRef?.resolveOP12037MainChoice('player',[...chosen],donCount,true);this.renderGame(engineRef.state)});
   foot.append(cancel,confirm);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);refresh();
 };
+
+
+/* OP12-037 migration for matches/saves created before its effect was registered. */
+function syncOP12037Runtime349(state){
+  if(!state?.sides)return;
+  for(const side of ['player','ai']){
+    const s=state.sides[side];
+    const cards=[s.leader,...s.deck,...s.hand,...s.life,...s.field,...s.trash,s.stage].filter(Boolean);
+    if(state.pending?.card)cards.push(state.pending.card);
+    if(Array.isArray(state.pending?.cards))cards.push(...state.pending.cards);
+    for(const card of cards){
+      if(card.id!=='OP12-037')continue;
+      card.name='鬼気 九刀流 阿修羅 抜剣 亡者戯';
+      card.type='event';card.color=['green'];card.cost=1;card.power=0;card.counter=3000;
+      card.traits=['麦わらの一味'];
+      card.text='【メイン】自分のDON!!3枚をレストにできる：相手の、キャラかDON!!合計2枚までを、レストにする。【カウンター】自分のリーダーを、このバトル中、パワー+3000。';
+      card.imageUrl='https://cards.oplaytcg.com/OP12/jp/OP12-037.webp';
+      card.effects=[];card.keywords=['main','counter'];
+    }
+  }
+}
+
+const previousOP12037MigrationPlay349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  syncOP12037Runtime349(this.state);
+  return previousOP12037MigrationPlay349.call(this,side,uid);
+};
+
+const previousOP12037MigrationStart349=GameEngine.prototype.start;
+GameEngine.prototype.start=function(...args){
+  const result=previousOP12037MigrationStart349.apply(this,args);
+  syncOP12037Runtime349(this.state);
+  return result;
+};
+
+const previousOP12037MigrationLoad349=GameEngine.prototype.load;
+GameEngine.prototype.load=function(saved){
+  const result=previousOP12037MigrationLoad349.call(this,saved);
+  syncOP12037Runtime349(this.state);
+  return result;
+};
+
+const previousOP12037MigrationRender349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  syncOP12037Runtime349(g);
+  return previousOP12037MigrationRender349.call(this,g);
+};
