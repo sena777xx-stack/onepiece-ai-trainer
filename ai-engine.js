@@ -153,8 +153,16 @@ const matchupPlayBonus=(g,card)=>{
   }
   return bonus;
 };
-const chooseBestPlay=async(engine,attempted)=>{
-  const g=engine.state,candidates=g.sides.ai.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card));
+const preCombatPlayUseful=(g,card)=>{
+  const foe=g.sides.player;
+  if(card.id==='ST31-005'&&!g.sides.ai.stage)return true;
+  if(['OP14-031','OP13-118','ST31-004','EB04-007'].includes(card.id))return true;
+  if(card.id==='ST21-003')return foe.life.length<=1&&foe.field.some(target=>!target.rested&&(target.keywords||[]).includes('blocker'));
+  if(card.id==='OP09-093')return foe.life.length<=1;
+  return false;
+};
+const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
+  const g=engine.state,candidates=g.sides.ai.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card)&&(!preCombatOnly||preCombatPlayUseful(g,card)));
   const evaluated=[];
   for(const card of candidates){
     const shadow=cloneForLookahead(engine);
@@ -202,7 +210,10 @@ const chooseBestAttack=async(engine,attempted)=>{
   }
   return choices.sort((a,b)=>b.score-a.score||battlePower(b.attacker)-battlePower(a.attacker)||String(a.attacker.id).localeCompare(String(b.attacker.id))||String(a.target.uid).localeCompare(String(b.target.uid)))[0]||null;
 };
-export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;const p=await chooseBestPlay(engine,attempted);if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
+export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;
+const hasUnattacked=[g.sides.ai.leader,...g.sides.ai.field].some(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
+const p=await chooseBestPlay(engine,attempted,hasUnattacked);
+if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
 if(!attempted.has('__luffy_support__')){
   attempted.add('__luffy_support__');
   const own=g.sides.ai;
