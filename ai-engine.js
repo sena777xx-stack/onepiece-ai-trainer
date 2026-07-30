@@ -1,5 +1,34 @@
 import{legalPlay,legalAttack,attackTargets,counterOptions,blockers}from'./rule-engine-v3.js?v=3441';const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const battlePower=card=>(card.power||0)+(card.attachedDon||0)*1000+(card.tempPower||0);
 const targetPower=(g,target)=>{const foe=g.sides.player,card=target.kind==='leader'?foe.leader:foe.field.find(c=>c.uid===target.uid);return(card?.power||0)+(card?.tempPower||0)};
-export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;const p=g.sides.ai.hand.filter(c=>legalPlay(g,'ai',c)&&!attempted.has(c.uid)).sort((a,b)=>b.cost-a.cost)[0];if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}const targets=attackTargets(g,'ai'),attackers=[g.sides.ai.leader,...g.sides.ai.field].filter(c=>(c.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(c.uid)&&c.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',c)&&targets.some(t=>battlePower(c)>=targetPower(g,t))).sort((a,b)=>battlePower(b)-battlePower(a)),a=attackers[0];if(a){const target=targets.find(t=>t.kind==='leader'&&battlePower(a)>=targetPower(g,t))||targets.find(t=>battlePower(a)>=targetPower(g,t));if(target){const targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(650);continue}}await show('行動を終えてターンを終了します');const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
+export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;const p=g.sides.ai.hand.filter(c=>legalPlay(g,'ai',c)&&!attempted.has(c.uid)).sort((a,b)=>b.cost-a.cost)[0];if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
+if(!attempted.has('__luffy_support__')){
+  attempted.add('__luffy_support__');
+  const own=g.sides.ai;
+  if(own.stage?.id==='ST31-005'&&!own.stage.rested&&own.don.rested>0&&typeof engine.beginST31005DonChoice==='function'){
+    const luffy=[own.leader,...own.field].filter(card=>card.name==='モンキー・D・ルフィ')
+      .sort((a,b)=>((b.power||0)+(b.tempPower||0))-((a.power||0)+(a.tempPower||0)))[0];
+    if(luffy&&engine.beginST31005DonChoice('ai')){
+      engine.resolveST31005DonChoice('ai',luffy.uid);
+      await show('サウザンド・サニー号でレストのDON!!をルフィへ付与します');
+      continue;
+    }
+  }
+  const ready=[own.leader,...own.field].filter(card=>legalAttack(g,'ai',card))
+    .sort((a,b)=>((b.power||0)+(b.tempPower||0))-((a.power||0)+(a.tempPower||0)));
+  if(own.don.active>0&&ready.length){
+    let attached=0;
+    if(own.leader?.id==='OP13-001'&&ready.some(card=>card.uid===own.leader.uid)&&own.don.active>0){
+      if(engine.attachDon('ai',own.leader.uid,1))attached++;
+    }
+    const attacker=ready.find(card=>card.uid!==own.leader.uid)||ready[0];
+    const rest=own.don.active;
+    if(attacker&&rest>0&&engine.attachDon('ai',attacker.uid,rest))attached+=rest;
+    if(attached>0){
+      await show('攻撃役へDON!!を'+attached+'枚付与します');
+      continue;
+    }
+  }
+}
+const targets=attackTargets(g,'ai'),attackers=[g.sides.ai.leader,...g.sides.ai.field].filter(c=>(c.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(c.uid)&&c.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',c)&&targets.some(t=>battlePower(c)>=targetPower(g,t))).sort((a,b)=>battlePower(b)-battlePower(a)),a=attackers[0];if(a){const target=targets.find(t=>t.kind==='leader'&&battlePower(a)>=targetPower(g,t))||targets.find(t=>battlePower(a)>=targetPower(g,t));if(target){const targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(650);continue}}await show('行動を終えてターンを終了します');const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
 export function chooseDefense(g,s,a){const needed=Math.max(0,a.power-a.targetPower+1000),block=blockers(g,s)[0];if(block&&a.targetKind==='leader'&&g.sides[s].life.length<=2)return{blockerUid:block.uid,counters:[]};const opts=counterOptions(g,s).sort((x,y)=>y.counter-x.counter),used=[];let total=0;for(const c of opts){if(total>=needed||g.sides[s].hand.length-used.length<=2)break;used.push(c.uid);total+=c.counter}return{counters:total>=needed?used:[]}}
