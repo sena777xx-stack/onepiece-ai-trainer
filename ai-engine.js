@@ -11,7 +11,6 @@ if(!attempted.has('__luffy_support__')){
     if(luffy&&engine.beginST31005DonChoice('ai')){
       engine.resolveST31005DonChoice('ai',luffy.uid);
       await show('サウザンド・サニー号でレストのDON!!をルフィへ付与します');
-      continue;
     }
   }
   const ready=[own.leader,...own.field].filter(card=>legalAttack(g,'ai',card))
