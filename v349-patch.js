@@ -595,3 +595,89 @@ UI.prototype.renderGame=function(g){
   const skip=document.createElement('button');skip.textContent='選ばず終了';skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP14031RestChoice('player',[]);this.renderGame(engineRef.state)});
   foot.append(reset,confirm,skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);refresh();
 };
+
+
+/* Character-area replacement rule: when 5 Characters are already in play,
+   choose 1 of your Characters and trash it before playing a new Character. */
+const previousFullFieldPlay349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const own=this.state.sides[side],source=own.hand.find(card=>card.uid===uid);
+  if(source?.type==='character'&&own.field.length>=5){
+    const canStart=this.state.activeSide===side&&this.state.phase==='main'&&!this.state.pending&&!this.state.winner&&Number(source.cost||0)<=own.don.active;
+    if(!canStart){
+      this.log('ルール上、このカードは現在使用できません');
+      return false;
+    }
+    if(side==='ai'){
+      const target=[...own.field].sort((a,b)=>((a.power||0)+(a.tempPower||0))-((b.power||0)+(b.tempPower||0))||((a.cost||0)-(b.cost||0)))[0];
+      if(!target)return false;
+      own.field=own.field.filter(card=>card.uid!==target.uid);
+      own.trash.push(target);
+      this.log('キャラエリアが5枚のため、'+target.name+'をトラッシュへ送った');
+      return previousFullFieldPlay349.call(this,side,uid);
+    }
+    this.state.pending={kind:'fullFieldTrashChoice',side,cardUid:uid,sourceName:source.name,options:own.field.map(card=>card.uid)};
+    this.state.phase='effectChoice';
+    this.log(source.name+'を登場させるため、場のキャラ1枚を選択');
+    return true;
+  }
+  return previousFullFieldPlay349.call(this,side,uid);
+};
+
+GameEngine.prototype.resolveFullFieldTrashChoice=async function(side,targetUid){
+  const pending=this.state.pending;
+  if(pending?.kind!=='fullFieldTrashChoice'||pending.side!==side||!pending.options.includes(targetUid))return false;
+  const own=this.state.sides[side],target=own.field.find(card=>card.uid===targetUid);
+  if(!target){
+    this.state.pending=null;this.state.phase='main';return false;
+  }
+  own.field=own.field.filter(card=>card.uid!==targetUid);
+  own.trash.push(target);
+  const cardUid=pending.cardUid,sourceName=pending.sourceName;
+  this.state.pending=null;
+  this.state.phase='main';
+  this.log(sourceName+'を登場させるため、'+target.name+'をトラッシュへ送った');
+  return this.playCard(side,cardUid);
+};
+
+GameEngine.prototype.cancelFullFieldTrashChoice=function(side){
+  const pending=this.state.pending;
+  if(pending?.kind!=='fullFieldTrashChoice'||pending.side!==side)return false;
+  this.state.pending=null;
+  this.state.phase='main';
+  this.log(pending.sourceName+'の登場をやめました');
+  return true;
+};
+
+const previousFullFieldRender349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  previousFullFieldRender349.call(this,g);
+  if(g.pending?.kind!=='fullFieldTrashChoice'||g.pending.side!=='player')return;
+  this.close();
+  const pending=g.pending,engineRef=window.__luffyEngine349,own=g.sides.player;
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>キャラエリアが5枚です</small><h2>トラッシュへ送るキャラを選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');help.textContent='「'+pending.sourceName+'」を登場させるため、自分の場のキャラ1枚をトラッシュへ送ります。';
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  for(const uid of pending.options){
+    const card=own.field.find(item=>item.uid===uid);if(!card)continue;
+    const button=document.createElement('button');button.dataset.id=card.uid;
+    if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
+    const name=document.createElement('strong');name.textContent=card.name;button.append(name);
+    const note=document.createElement('small');note.textContent='コスト '+card.cost+' / パワー '+(card.power+(card.tempPower||0));button.append(note);
+    button.addEventListener('click',async()=>{
+      this.close();
+      await engineRef?.resolveFullFieldTrashChoice('player',card.uid);
+      this.renderGame(engineRef.state);
+    });
+    grid.append(button);
+  }
+  body.append(help,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer single';
+  const cancel=document.createElement('button');cancel.textContent='登場をやめる';
+  cancel.addEventListener('click',()=>{engineRef?.cancelFullFieldTrashChoice('player');this.close();this.renderGame(engineRef.state)});
+  foot.append(cancel);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
