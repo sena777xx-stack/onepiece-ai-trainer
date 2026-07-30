@@ -2533,3 +2533,37 @@ UI.prototype.renderGame=function(g){
   }
   return result;
 };
+
+
+/* AI trigger finalizer v350: never leave an AI-only choice blocking the player's main phase. */
+const previousAiTriggerFinalizer350=GameEngine.prototype.resolveTrigger;
+GameEngine.prototype.resolveTrigger=async function(use){
+  const original=this.state.pending;
+  const aiLife=Boolean(original&&['trigger','lifeReveal'].includes(original.kind)&&original.side==='ai');
+  const result=await previousAiTriggerFinalizer350.call(this,use);
+  if(!aiLife)return result;
+  for(let guard=0;guard<8;guard++){
+    const pending=this.state.pending;
+    if(!pending||pending.side!=='ai')break;
+    const before=pending;
+    if(pending.kind==='effectChoice'){
+      await this.resolveTeachKoChoice('ai',(pending.options||[]).slice(0,pending.max||1));
+    }else if(pending.kind==='handDiscardChoice'){
+      const own=this.state.sides.ai;
+      const ids=own.hand.slice().sort((a,b)=>Number(a.counter||0)-Number(b.counter||0)||Number(a.cost||0)-Number(b.cost||0)).slice(0,pending.count||1).map(card=>card.uid);
+      await this.resolveTeachKoChoice('ai',ids);
+    }else if(pending.kind==='devonTriggerChoice'&&typeof this.resolveDevonChoice==='function'){
+      await this.resolveDevonChoice('ai',(pending.options||[])[0]||null);
+    }else if(pending.kind==='sanjuanPowerChoice'&&typeof this.resolveSanjuanChoice==='function'){
+      const own=this.state.sides.ai;
+      const target=(pending.options||[]).map(uid=>uid===own.leader.uid?own.leader:own.field.find(card=>card.uid===uid)).filter(Boolean)
+        .sort((a,b)=>(7000-Number(b.power||0))-(7000-Number(a.power||0)))[0];
+      await this.resolveSanjuanChoice('ai',target?.uid||null);
+    }else if(pending.kind==='darkWaterNegateChoice'&&typeof this.resolveDarkWaterChoice==='function'){
+      await this.resolveDarkWaterChoice('ai',(pending.options||[])[0]||null);
+    }else break;
+    if(this.state.pending===before)break;
+  }
+  if(!this.state.pending&&this.state.activeSide==='player'&&!this.state.winner)this.state.phase='main';
+  return true;
+};
