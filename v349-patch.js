@@ -1644,3 +1644,156 @@ UI.prototype.defense=function(g,...args){
   try{return previousPaidCounterFilteredDefense349.call(this,g,...args)}
   finally{for(const [card,counter] of hidden)card.counter=counter}
 };
+
+
+/* OP05-038 舞踏石
+   Counter: pay 2 DON!!, Leader/Character +4000; then optionally discard
+   one card to activate up to 3 DON!!. Trigger: rest an opposing Leader or
+   a cost-3-or-less opposing Character. */
+function syncOP05038Runtime349(state){
+  if(!state?.sides)return;
+  const all=[];
+  for(const sideName of ['player','ai']){
+    const side=state.sides[sideName];if(!side)continue;
+    if(side.leader)all.push(side.leader);
+    if(side.stage)all.push(side.stage);
+    for(const zone of ['deck','hand','life','field','trash'])if(Array.isArray(side[zone]))all.push(...side[zone]);
+  }
+  if(state.pending?.card)all.push(state.pending.card);
+  for(const card of all){
+    if(card?.id!=='OP05-038')continue;
+    card.name='舞踏石';
+    card.type='event';card.color=['green'];card.cost=2;card.power=0;card.counter=4000;
+    card.traits=['ドンキホーテ海賊団'];
+    card.text='【カウンター】自分のリーダーかキャラ1枚までを、このバトル中、パワー+4000。その後、自分の手札1枚を捨ててもよい。そうした場合、自分のDON!!3枚までを、アクティブにする。【トリガー】相手のリーダーかコスト3以下のキャラ1枚までを、レストにする。';
+    card.effects=[{timing:'trigger',action:'op05038Trigger'}];
+    card.keywords=['counter','trigger'];
+  }
+}
+const previousOP05038Submit349=GameEngine.prototype.submitCounters;
+GameEngine.prototype.submitCounters=function(side,counterIds=[]){
+  syncOP05038Runtime349(this.state);
+  const battle=this.state.pending,own=this.state.sides[side];
+  if(battle?.kind!=='battle'||battle.step!=='counter'||battle.defendingSide!==side)
+    return previousOP05038Submit349.call(this,side,counterIds);
+  const requested=Array.isArray(counterIds)?counterIds:[counterIds],accepted=[];
+  let used=false;
+  for(const uid of requested){
+    const card=own.hand.find(item=>item.uid===uid);
+    if(card?.id!=='OP05-038'){accepted.push(uid);continue}
+    if(own.don.active<2){
+      this.log(card.name+'：使用コストとしてアクティブDON!!2枚が必要です');
+      continue;
+    }
+    own.don.active-=2;own.don.rested+=2;accepted.push(uid);used=true;
+    this.log(card.name+'：使用コストのDON!!2枚をレストし、パワー+4000');
+  }
+  const result=previousOP05038Submit349.call(this,side,accepted);
+  if(used&&side==='player'){
+    this.state.pending={kind:'op05038DiscardChoice',side,sourceName:'舞踏石'};
+    this.state.phase='effectChoice';
+    this.log('舞踏石：手札1枚を捨ててDON!!3枚までをアクティブにできます');
+  }
+  return result;
+};
+GameEngine.prototype.resolveOP05038DiscardChoice=function(side,discardUid=null){
+  const pending=this.state.pending;
+  if(pending?.kind!=='op05038DiscardChoice'||pending.side!==side)return false;
+  const own=this.state.sides[side];
+  if(discardUid){
+    const index=own.hand.findIndex(card=>card.uid===discardUid);
+    if(index>=0){
+      const [discarded]=own.hand.splice(index,1);own.trash.push(discarded);
+      const count=Math.min(3,own.don.rested);
+      own.don.rested-=count;own.don.active+=count;
+      this.log('舞踏石：'+discarded.name+'を捨て、DON!!'+count+'枚をアクティブにした');
+    }
+  }else this.log('舞踏石：手札を捨てませんでした');
+  this.state.pending=null;this.state.phase='main';
+  return true;
+};
+const previousOP05038Trigger349=GameEngine.prototype.resolveTrigger;
+GameEngine.prototype.resolveTrigger=async function(use){
+  syncOP05038Runtime349(this.state);
+  const pending=this.state.pending;
+  if(use&&['trigger','lifeReveal'].includes(pending?.kind)&&pending.card?.id==='OP05-038'){
+    const side=pending.side,own=this.state.sides[side],foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+    own.trash.push(pending.card);
+    this.state.pending={kind:'op05038TriggerChoice',side,options:[foe.leader,...foe.field.filter(card=>this.effectiveCost(foeSide,card)<=3)].map(card=>card.uid)};
+    this.state.phase='effectChoice';
+    this.log('舞踏石のトリガー：レストにする対象を選択');
+    return true;
+  }
+  return previousOP05038Trigger349.call(this,use);
+};
+GameEngine.prototype.resolveOP05038TriggerChoice=function(side,targetUid=null){
+  const pending=this.state.pending;
+  if(pending?.kind!=='op05038TriggerChoice'||pending.side!==side)return false;
+  const foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  const target=[foe.leader,...foe.field].find(card=>card.uid===targetUid&&pending.options.includes(card.uid));
+  if(target){target.rested=true;this.log('舞踏石のトリガー：'+target.name+'をレストにした')}
+  else this.log('舞踏石のトリガー：対象を選びませんでした');
+  this.state.pending=null;this.state.phase='main';return true;
+};
+const previousOP05038Start349=GameEngine.prototype.start;
+GameEngine.prototype.start=function(...args){const result=previousOP05038Start349.apply(this,args);syncOP05038Runtime349(this.state);return result};
+const previousOP05038Load349=GameEngine.prototype.load;
+GameEngine.prototype.load=function(saved){const result=previousOP05038Load349.call(this,saved);syncOP05038Runtime349(this.state);return result};
+
+const previousOP05038FilteredDefense349=UI.prototype.defense;
+UI.prototype.defense=function(g,...args){
+  syncOP05038Runtime349(g);
+  const battle=g.pending,own=g.sides.player,hidden=[];
+  const cannotPay=battle?.kind==='battle'&&battle.defendingSide==='player'&&own.don.active<2;
+  if(cannotPay){
+    for(const card of own.hand.filter(item=>item.id==='OP05-038')){hidden.push([card,card.counter]);card.counter=0}
+  }
+  try{return previousOP05038FilteredDefense349.call(this,g,...args)}
+  finally{for(const [card,counter] of hidden)card.counter=counter}
+};
+const previousOP05038Render349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  syncOP05038Runtime349(g);
+  previousOP05038Render349.call(this,g);
+  const pending=g.pending,engineRef=window.__luffyEngine349;
+  if(pending?.side!=='player'||!['op05038DiscardChoice','op05038TriggerChoice'].includes(pending.kind))return;
+  this.close();
+  const own=g.sides.player,foe=g.sides.ai;
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  const body=document.createElement('div');body.className='redirect-body';
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  const foot=document.createElement('div');foot.className='redirect-footer single';
+  if(pending.kind==='op05038DiscardChoice'){
+    head.innerHTML='<small>カウンター効果</small><h2>舞踏石：手札を捨てるか選択</h2>';
+    const help=document.createElement('p');help.textContent='手札1枚を捨てると、DON!!3枚までをアクティブにします。';
+    for(const card of own.hand){
+      const button=document.createElement('button');
+      if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
+      const name=document.createElement('strong');name.textContent=card.name;button.append(name);
+      button.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038DiscardChoice('player',card.uid);this.renderGame(engineRef.state)});
+      grid.append(button);
+    }
+    body.append(help,grid);
+    const skip=document.createElement('button');skip.textContent='捨てずに終了';
+    skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038DiscardChoice('player',null);this.renderGame(engineRef.state)});
+    foot.append(skip);
+  }else{
+    head.innerHTML='<small>トリガー効果</small><h2>舞踏石：対象を選択</h2>';
+    const help=document.createElement('p');help.textContent='相手のリーダーか、コスト3以下のキャラ1枚までをレストにします。';
+    const candidates=[foe.leader,...foe.field].filter(card=>pending.options.includes(card.uid));
+    for(const card of candidates){
+      const button=document.createElement('button');
+      if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
+      const name=document.createElement('strong');name.textContent=card.name;button.append(name);
+      button.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038TriggerChoice('player',card.uid);this.renderGame(engineRef.state)});
+      grid.append(button);
+    }
+    body.append(help,grid);
+    const skip=document.createElement('button');skip.textContent='選ばず終了';
+    skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038TriggerChoice('player',null);this.renderGame(engineRef.state)});
+    foot.append(skip);
+  }
+  panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
