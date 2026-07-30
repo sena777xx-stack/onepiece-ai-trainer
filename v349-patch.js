@@ -2685,3 +2685,25 @@ UI.prototype.renderGame=function(g){
   }
   return result;
 };
+
+
+/* teach-search-capture-fallback-357
+   Resolve the search in capture phase on mobile browsers before nested modal
+   listeners can swallow the click. The existing handler then closes/renders. */
+if(!window.__teachSearchCapture357){
+  window.__teachSearchCapture357=true;
+  document.addEventListener('click',event=>{
+    const button=event.target?.closest?.('button');
+    const label=button?.textContent?.trim();
+    if(label!=='手札に加える'&&label!=='加えない')return;
+    const engine=window.__luffyEngine349;
+    if(engine?.state?.pending?.kind!=='teachSearch3Choice'||engine.state.pending.side!=='player')return;
+    let ids=[];
+    if(label==='手札に加える'){
+      const selected=document.querySelector('.search3-grid button.selected:not([disabled])')
+        ||document.querySelector('.search3-grid button:not([disabled])');
+      if(selected?.dataset?.id)ids=[selected.dataset.id];
+    }
+    engine.resolveTeachKoChoice('player',ids);
+  },true);
+}
