@@ -2,10 +2,24 @@ import{legalPlay,legalAttack,attackTargets,counterOptions,blockers}from'./rule-e
 const battlePower=card=>(card.power||0)+(card.attachedDon||0)*1000+(card.tempPower||0);
 const targetPower=(g,target)=>{const foe=g.sides.player,card=target.kind==='leader'?foe.leader:foe.field.find(c=>c.uid===target.uid);return(card?.power||0)+(card?.tempPower||0)};
 const luffyRestoreIds=new Set(['OP13-037','OP14-022','OP14-031','OP13-027','OP13-118']);
+const hasTrigger=card=>(card?.keywords||[]).includes('trigger')||String(card?.text||'').includes('【トリガー】')||(card?.effects||[]).some(effect=>effect.timing==='trigger');
 const usefulMainEvent=(g,card)=>{
-  const own=g.sides.ai,foe=g.sides.player;
-  if(own.leader?.id!=='OP13-001')return true;
-  if(card.type==='stage')return !own.stage;
+  const own=g.sides.ai,foe=g.sides.player,leader=own.leader?.id;
+  if(card.type==='stage')return !own.stage&&own.hand.length>=3;
+  if(leader==='OP16-080'){
+    if(card.type==='character'&&Number(card.counter||0)>=2000&&own.life.length<=2&&own.hand.length<=4&&own.field.length>=2)return false;
+    if(card.type!=='event')return true;
+    if(card.id==='OP09-096')return own.deck.length>=3&&own.hand.length<=8;
+    if(card.id==='OP16-115')return own.trash.some(target=>target.id!==card.id&&hasTrigger(target));
+    if(card.id==='EB04-059'){
+      const valid6=foe.field.filter(target=>engineCost(g,'player',target)<=6);
+      const valid5=valid6.filter(target=>engineCost(g,'player',target)<=5);
+      return own.life.length>0&&own.field.length<foe.field.length&&valid6.length>0&&(valid5.length>0||valid6.some(target=>(target.power||0)>=7000));
+    }
+    if(card.id==='OP16-116')return own.don.total>=10&&own.hand.some(target=>target.uid!==card.uid&&target.type==='character'&&target.name==='マーシャル・D・ティーチ');
+    return false;
+  }
+  if(leader!=='OP13-001')return card.type!=='event';
   if(card.id==='OP12-037'){
     const activeCharacters=foe.field.filter(target=>!target.rested).length;
     const targets=activeCharacters+Math.min(2,foe.don.active),reserve=desiredLuffyDefenseDon(g);
@@ -37,7 +51,21 @@ const desiredLuffyDefenseDon=g=>{
 };
 const playScore=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player,turns=g.turnsTaken?.ai||0;
-  if(card.type==='stage')return own.stage? -1000:card.id==='ST31-005'?130:55;
+  if(card.type==='stage')return own.stage?-1000:(card.id==='OP09-099'?104:card.id==='ST31-005'?130:55);
+  if(own.leader?.id==='OP16-080'){
+    if(card.id==='OP09-093')return 190+(foe.field.length*8)+(own.life.length<=2?18:0);
+    if(card.id==='OP16-116')return 182+(foe.life.length<=2?24:0);
+    if(card.id==='OP16-119')return 168+(own.life.length<=2?30:0);
+    if(card.id==='EB04-058')return 150+(own.life.length<=2?55:0);
+    if(card.id==='EB04-059')return 135+foe.field.filter(target=>engineCost(g,'player',target)<=6).length*14;
+    if(card.id==='OP16-108')return 128+(own.trash.some(target=>(target.traits||[]).includes('黒ひげ海賊団')&&Number(target.cost||0)<=6)?22:0);
+    if(card.id==='OP16-115')return 118+own.trash.filter(hasTrigger).length*5;
+    if(card.id==='OP09-096')return turns<=3?142:105;
+    if(card.id==='OP09-086')return 115+Math.min(35,own.trash.length*3);
+    if(card.id==='OP16-106')return 108;
+    if(card.id==='OP16-104'||card.id==='OP12-112')return own.life.length<=2&&own.hand.length<=5?45:96;
+    if(Number(card.counter||0)>=2000)return own.life.length<=2?35:82;
+  }
   if(card.id==='OP01-016'||card.id==='EB02-017'||card.id==='EB04-002')return turns<=2?125:78;
   if(card.id==='OP14-031')return 108+(own.life.length<=2?30:0)+foe.field.filter(c=>!c.rested&&(c.cost||0)<=8).length*8;
   if(card.id==='OP13-118')return 112+(foe.life.length<=2?25:0);
