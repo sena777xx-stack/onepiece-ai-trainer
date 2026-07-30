@@ -1044,3 +1044,21 @@ UI.prototype.showCard=function(side,card,g){
   });
   actions.prepend(button);
 };
+
+
+/* Stable undo: skip transient AI snapshots and return control to the last
+   player state. This also makes an in-flight AI loop observe the restored state. */
+GameEngine.prototype.undo=function(){
+  if(!this.history.length)return false;
+  let restored=null;
+  while(this.history.length){
+    restored=this.history.pop();
+    if(restored?.activeSide==='player')break;
+  }
+  if(!restored)return false;
+  this.state=restored;
+  if(this.state.phase==='effectChoice'&&!this.state.pending)this.state.phase='main';
+  window.__luffyEngine349=this;
+  this.log('直前のプレイヤー操作まで戻しました');
+  return true;
+};
