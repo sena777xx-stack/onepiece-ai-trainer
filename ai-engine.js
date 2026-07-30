@@ -1,4 +1,4 @@
-import{legalPlay,legalAttack,attackTargets,counterOptions,blockers}from'./rule-engine-v3.js?v=3441';import{recordAiTurn,getAiPolicyBias,getCardLearningBonus}from'./ai-telemetry.js?v=3512';const wait=ms=>new Promise(r=>setTimeout(r,ms));
+import{legalPlay,legalAttack,attackTargets,counterOptions,blockers}from'./rule-engine-v3.js?v=3441';import{recordAiTurn,getAiPolicyBias,getCardLearningBonus}from'./ai-telemetry.js?v=3513';const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const battlePower=card=>(card.power||0)+(card.attachedDon||0)*1000+(card.tempPower||0);
 const targetPower=(g,target)=>{const foe=g.sides.player,card=target.kind==='leader'?foe.leader:foe.field.find(c=>c.uid===target.uid);return(card?.power||0)+(card?.tempPower||0)};
 const luffyRestoreIds=new Set(['OP13-037','OP14-022','OP14-031','OP13-027','OP13-118']);
