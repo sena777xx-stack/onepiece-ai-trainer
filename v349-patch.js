@@ -1,5 +1,5 @@
 import{GameEngine}from'./game-engine-v3.js?v=3441';
-import{UI}from'./ui-fixed.js?v=3442';
+import{UI}from'./ui-fixed.js?v=3441';
 
 const previousPlayCard349=GameEngine.prototype.playCard;
 GameEngine.prototype.playCard=async function(side,uid){
