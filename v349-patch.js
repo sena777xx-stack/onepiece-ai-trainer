@@ -2494,12 +2494,21 @@ UI.prototype.showBattleReview349=function(g){
   }
   body.append(summary,logTitle,logs);
   const foot=document.createElement('div');foot.className='redirect-footer';
-  const board=document.createElement('button');board.type='button';board.textContent='最終盤面を見る';board.addEventListener('click',()=>this.close());
+  const board=document.createElement('button');board.type='button';board.textContent='最終盤面を見る';board.addEventListener('click',()=>{this.close();this.showFinalBoardReturn349(g)});
   const result=document.createElement('button');result.type='button';result.className='primary';result.textContent='結果画面へ戻る';result.addEventListener('click',()=>this.showBattleResult349(g));
   foot.append(board,result);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
 };
+UI.prototype.showFinalBoardReturn349=function(g){
+  document.querySelector('[data-final-board-return-349]')?.remove();
+  const wrap=document.createElement('div');wrap.dataset.finalBoardReturn349='true';
+  wrap.style.position='fixed';wrap.style.left='16px';wrap.style.right='16px';wrap.style.bottom='calc(84px + env(safe-area-inset-bottom))';wrap.style.zIndex='9999';wrap.style.display='flex';wrap.style.justifyContent='center';wrap.style.pointerEvents='none';
+  const button=document.createElement('button');button.type='button';button.className='primary';button.textContent='結果画面へ戻る';
+  button.style.width='min(360px,100%)';button.style.height='52px';button.style.pointerEvents='auto';button.style.boxShadow='0 8px 24px rgba(0,0,0,.45)';
+  button.addEventListener('click',()=>{wrap.remove();this.showBattleResult349(g)});
+  wrap.append(button);document.body.append(wrap);
+};
 UI.prototype.showBattleResult349=function(g){
-  this.close();
+  this.close();document.querySelector('[data-final-board-return-349]')?.remove();
   const won=g.winner==='player';
   const overlay=document.createElement('div');overlay.className='dialog battle-result-overlay';
   const panel=document.createElement('section');panel.className='redirect-flow battle-result-sheet '+(won?'win':'lose');
@@ -2508,9 +2517,10 @@ UI.prototype.showBattleResult349=function(g){
   const result=document.createElement('h2');result.textContent=won?'WIN':'LOSE';
   const note=document.createElement('p');note.textContent=won?'バトルに勝利しました':'バトルに敗北しました';
   head.append(label,result,note);
-  const foot=document.createElement('div');foot.className='redirect-footer';
+  const foot=document.createElement('div');foot.className='redirect-footer';foot.style.display='grid';foot.style.gridTemplateColumns='1fr 1fr';foot.style.gap='12px';foot.style.minHeight='0';foot.style.height='auto';
   const review=document.createElement('button');review.type='button';review.textContent='振り返り';review.addEventListener('click',()=>this.showBattleReview349(g));
-  const home=document.createElement('button');home.type='button';home.className='primary';home.textContent='最初の画面に戻る';home.addEventListener('click',()=>{this.close();this._battleResultShown349=false;this.a.home()});
+  review.style.height='56px';review.style.minHeight='56px';review.style.padding='10px 12px';
+  const home=document.createElement('button');home.type='button';home.className='primary';home.textContent='最初の画面に戻る';home.style.height='56px';home.style.minHeight='56px';home.style.padding='10px 12px';home.addEventListener('click',()=>{this.close();this._battleResultShown349=false;this.a.home()});
   foot.append(review,home);panel.append(head,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
 };
 const previousBattleResultRender349=UI.prototype.renderGame;
