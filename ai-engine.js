@@ -4,6 +4,7 @@ const targetPower=(g,target)=>{const foe=g.sides.player,card=target.kind==='lead
 const luffyRestoreIds=new Set(['OP13-037','OP14-022','OP14-031','OP13-027','OP13-118']);
 const usefulMainEvent=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player;
+  if(own.leader?.id!=='OP13-001')return true;
   if(card.type==='stage')return !own.stage;
   if(card.id==='OP12-037'){
     const activeCharacters=foe.field.filter(target=>!target.rested).length;
