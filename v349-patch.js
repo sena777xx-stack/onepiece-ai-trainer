@@ -1119,3 +1119,149 @@ UI.prototype.targets=function(targets){
   }
   return previousEB04007Targets349.call(this,targets);
 };
+
+
+/* OP12-037 Demon Aura Nine Sword Style:
+   Main — rest 3 own DON!! to rest up to 2 opposing Characters/DON!! total.
+   Counter — pay 1 DON!! and give the defending Leader +3000 for the battle. */
+const previousOP12037Play349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousOP12037Play349.call(this,side,uid);
+  if(!result||source?.id!=='OP12-037')return result;
+  const own=this.state.sides[side],foe=this.state.sides[side==='player'?'ai':'player'];
+  if(own.don.active<3){
+    this.log(source.name+'：追加コストのアクティブDON!!3枚がないため、メイン効果を使用しませんでした');
+    return result;
+  }
+  const charOptions=foe.field.filter(card=>!card.rested).map(card=>card.uid);
+  const maxDon=Math.min(2,foe.don.active);
+  if(side==='ai'){
+    own.don.active-=3;own.don.rested+=3;
+    const targets=foe.field.filter(card=>charOptions.includes(card.uid))
+      .sort((a,b)=>((b.power||0)+(b.tempPower||0))-((a.power||0)+(a.tempPower||0))).slice(0,2);
+    for(const card of targets)card.rested=true;
+    const donCount=Math.min(2-targets.length,maxDon);
+    foe.don.active-=donCount;foe.don.rested+=donCount;
+    this.log(source.name+'：'+targets.length+'枚のキャラとDON!!'+donCount+'枚をレストにした');
+    return result;
+  }
+  this.state.pending={kind:'op12037MainChoice',side,sourceName:source.name,charOptions,maxDon};
+  this.state.phase='effectChoice';
+  this.log(source.name+'：追加でDON!!3枚をレストにするか選択');
+  return result;
+};
+
+GameEngine.prototype.resolveOP12037MainChoice=function(side,charIds=[],donCount=0,use=true){
+  const pending=this.state.pending;
+  if(pending?.kind!=='op12037MainChoice'||pending.side!==side)return false;
+  const own=this.state.sides[side],foe=this.state.sides[side==='player'?'ai':'player'];
+  if(!use){
+    this.log(pending.sourceName+'のメイン効果を使用しませんでした');
+    this.state.pending=null;this.state.phase='main';return true;
+  }
+  if(own.don.active<3){
+    this.log(pending.sourceName+'：追加コストのDON!!が不足しています');
+    this.state.pending=null;this.state.phase='main';return false;
+  }
+  const chosen=[...new Set(Array.isArray(charIds)?charIds:[charIds])]
+    .filter(uid=>pending.charOptions.includes(uid)).slice(0,2);
+  const validChars=chosen.map(uid=>foe.field.find(card=>card.uid===uid&&!card.rested)).filter(Boolean);
+  const dons=Math.min(Math.max(0,Number(donCount)||0),pending.maxDon,foe.don.active,2-validChars.length);
+  own.don.active-=3;own.don.rested+=3;
+  for(const card of validChars)card.rested=true;
+  foe.don.active-=dons;foe.don.rested+=dons;
+  this.log(pending.sourceName+'：相手キャラ'+validChars.length+'枚とDON!!'+dons+'枚をレストにした');
+  this.state.pending=null;this.state.phase='main';
+  return true;
+};
+
+const previousOP12037Counters349=GameEngine.prototype.submitCounters;
+GameEngine.prototype.submitCounters=function(side,counterIds=[]){
+  const battle=this.state.pending,s=this.state.sides[side];
+  if(battle?.kind==='battle'&&battle.step==='counter'&&battle.defendingSide===side){
+    const requested=Array.isArray(counterIds)?counterIds:[counterIds],accepted=[];
+    for(const uid of requested){
+      const card=s.hand.find(item=>item.uid===uid);
+      if(card?.id!=='OP12-037'){accepted.push(uid);continue}
+      if(battle.targetKind!=='leader'||s.don.active<1){
+        this.log(card.name+'：リーダーのバトルでアクティブDON!!1枚が必要です');
+        continue;
+      }
+      s.don.active-=1;s.don.rested+=1;
+      accepted.push(uid);
+    }
+    return previousOP12037Counters349.call(this,side,accepted);
+  }
+  return previousOP12037Counters349.call(this,side,counterIds);
+};
+
+const previousOP12037Defense349=UI.prototype.defense;
+UI.prototype.defense=function(g){
+  previousOP12037Defense349.call(this,g);
+  const battle=g.pending,s=g.sides.player;
+  if(battle?.kind!=='battle'||battle.defendingSide!=='player')return;
+  for(const card of s.hand.filter(item=>item.id==='OP12-037')){
+    const button=this.modal?.querySelector('.counter-grid button[data-id="'+card.uid+'"]');
+    if(!button)continue;
+    const usable=battle.targetKind==='leader'&&s.don.active>=1;
+    button.disabled=!usable;
+    button.title=usable?'アクティブDON!!1枚を使用':'リーダーへの攻撃時に、アクティブDON!!1枚が必要です';
+    const note=document.createElement('small');note.textContent=usable?'コスト：DON!!1枚':'現在は使用不可';button.append(note);
+  }
+};
+
+const previousOP12037Render349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  previousOP12037Render349.call(this,g);
+  if(g.pending?.kind!=='op12037MainChoice'||g.pending.side!=='player')return;
+  this.close();
+  const pending=g.pending,engineRef=window.__luffyEngine349,foe=g.sides.ai,chosen=new Set();
+  let donCount=0;
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>メイン効果</small><h2>OP12-037：レストするカードを選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');help.textContent='追加で自分のDON!!3枚をレストにし、相手のキャラとDON!!を合計2枚までレストにします。';
+  const status=document.createElement('p');
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  const refresh=()=>{
+    const total=chosen.size+donCount;
+    status.textContent='選択 '+total+' / 2枚（キャラ '+chosen.size+'枚・DON!! '+donCount+'枚）';
+    for(const button of grid.querySelectorAll('button[data-id]'))button.classList.toggle('selected',chosen.has(button.dataset.id));
+    const donButton=grid.querySelector('[data-don]');
+    if(donButton){donButton.classList.toggle('selected',donCount>0);donButton.querySelector('small').textContent='選択 ×'+donCount+' / アクティブ '+foe.don.active+'枚'}
+  };
+  for(const uid of pending.charOptions){
+    const card=foe.field.find(item=>item.uid===uid);if(!card)continue;
+    const button=document.createElement('button');button.dataset.id=card.uid;
+    if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
+    const name=document.createElement('strong');name.textContent=card.name;button.append(name);
+    const note=document.createElement('small');note.textContent='パワー '+((card.power||0)+(card.tempPower||0));button.append(note);
+    button.addEventListener('click',()=>{
+      if(chosen.has(card.uid))chosen.delete(card.uid);
+      else if(chosen.size+donCount<2)chosen.add(card.uid);
+      refresh();
+    });
+    grid.append(button);
+  }
+  if(pending.maxDon>0){
+    const button=document.createElement('button');button.dataset.don='true';
+    const name=document.createElement('strong');name.textContent='相手のDON!!';button.append(name);
+    const note=document.createElement('small');button.append(note);
+    button.addEventListener('click',()=>{
+      const available=Math.min(pending.maxDon,2-chosen.size);
+      donCount=donCount>=available?0:donCount+1;
+      refresh();
+    });
+    grid.append(button);
+  }
+  body.append(help,status,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer';
+  const cancel=document.createElement('button');cancel.textContent='効果を使わない';
+  cancel.addEventListener('click',()=>{this.close();engineRef?.resolveOP12037MainChoice('player',[],0,false);this.renderGame(engineRef.state)});
+  const confirm=document.createElement('button');confirm.className='primary';confirm.textContent='DON!!3枚をレストして決定';
+  confirm.addEventListener('click',()=>{this.close();engineRef?.resolveOP12037MainChoice('player',[...chosen],donCount,true);this.renderGame(engineRef.state)});
+  foot.append(cancel,confirm);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);refresh();
+};
