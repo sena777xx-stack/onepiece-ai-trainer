@@ -233,11 +233,13 @@ const bestSecondPlayValue=async(engine,attempted)=>{
   return best;
 };
 const preCombatPlayUseful=(g,card)=>{
-  const foe=g.sides.player;
-  if(card.id==='ST31-005'&&!g.sides.ai.stage)return true;
+  const own=g.sides.ai,foe=g.sides.player;
+  const searchers=new Set(['ST31-005','OP01-016','EB02-017','EB04-002','OP09-096']);
+  if(searchers.has(card.id)&&own.hand.length<=7)return true;
   if(['OP14-031','OP13-118','ST31-004','EB04-007'].includes(card.id))return true;
   if(card.id==='ST21-003')return foe.life.length<=1&&foe.field.some(target=>!target.rested&&(target.keywords||[]).includes('blocker'));
-  if(card.id==='OP09-093')return foe.life.length<=1;
+  if(card.id==='OP09-093')return foe.life.length<=1||foe.field.some(target=>(target.effects||[]).length>0&&Number(target.power||0)>=7000);
+  if(card.id==='EB04-059')return foe.field.some(target=>!target.rested&&(target.keywords||[]).includes('blocker')&&engineCost(g,'player',target)<=6);
   return false;
 };
 const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
@@ -249,11 +251,17 @@ const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
     try{success=Boolean(await shadow.playCard('ai',card.uid))}catch{}
     if(!success){evaluated.push({card,score:-1e9});continue}
     const afterCombat=combatOutlook(shadow.state,attempted);
-    const tactical=preCombatPlayUseful(g,card)||(!beforeCombat.lethal&&afterCombat.lethal)||afterCombat.score>=beforeCombat.score+10;
+    const removedBlocker=afterCombat.activeBlockers<beforeCombat.activeBlockers;
+    const tactical=preCombatPlayUseful(g,card)||(!beforeCombat.lethal&&afterCombat.lethal)||removedBlocker||afterCombat.score>=beforeCombat.score+24;
     if(preCombatOnly&&!tactical)continue;
     let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card)+getCardLearningBonus(g,card)+(afterCombat.score-beforeCombat.score)*2;
     const safetyBefore=opponentTurnRisk(g),safetyAfter=opponentTurnRisk(shadow.state);
     score+=(safetyBefore-safetyAfter)*1.8;
+    const defensiveCardCost=Number(card.counter||0)>=2000?(g.sides.ai.life.length<=2?58:22):Number(card.counter||0)/120;
+    const handAfter=shadow.state.sides.ai.hand.length;
+    score-=defensiveCardCost;
+    if(handAfter<=2&&g.sides.ai.life.length<=2)score-=55;
+    if(preCombatOnly&&!preCombatPlayUseful(g,card)&&beforeCombat.lethal)score-=2200;
     if(!preCombatOnly&&!shadow.state.pending){
       const continuation=await bestSecondPlayValue(shadow,attempted);
       score+=(continuation-stateTacticalValue(shadow.state,attempted))*.55;
