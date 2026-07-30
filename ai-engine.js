@@ -7,7 +7,20 @@ const usefulMainEvent=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player,leader=own.leader?.id;
   if(card.type==='stage')return !own.stage&&own.hand.length>=3;
   if(leader==='OP16-080'){
-    if(card.type==='character'&&Number(card.counter||0)>=2000&&own.life.length<=2&&own.hand.length<=3&&own.field.length>=2)return false;
+    if(card.type==='character'){
+      const turns=g.turnsTaken?.ai||0;
+      if(card.id==='OP12-112')return own.life.length>=3&&own.hand.length>=7&&own.field.length<=3;
+      if(card.id==='OP16-104'){
+        const copyTarget=foe.field.some(target=>Number(target.power||0)+Number(target.tempPower||0)>=7000);
+        return own.life.length>=3&&own.hand.length>=6&&own.field.length<=3&&copyTarget;
+      }
+      if(card.id==='OP16-109'){
+        const koTargets=foe.field.filter(target=>engineCost(g,'player',target)<=1).length;
+        return turns<=3||koTargets>0||own.hand.length>=7;
+      }
+      if(Number(card.counter||0)>=2000&&(own.life.length<=2||own.hand.length<=5))return false;
+      return true;
+    }
     if(card.type!=='event')return true;
     if(card.id==='OP09-096')return own.deck.length>=3&&own.hand.length<=8;
     if(card.id==='OP16-115')return own.trash.some(target=>target.id!==card.id&&hasTrigger(target));
@@ -30,9 +43,12 @@ const usefulMainEvent=(g,card)=>{
       const canReachLeader=readyAttackers.filter(target=>battlePower(target)+donAfterPlay*1000>=leaderPower).length>=attacksNeeded;
       return foe.life.length<=1&&activeBlockers>0&&readyAttackers.length>=attacksNeeded&&canReachLeader;
     }
-    const keepForDefense=Number(card.counter||0)>=2000&&own.life.length<=2&&own.hand.length<=3&&own.field.length>=2;
+    const turns=g.turnsTaken?.ai||0;
+    if(card.id==='EB04-002')return turns<=3&&own.deck.length>=5&&own.hand.length<=6;
+    const keepForDefense=Number(card.counter||0)>=2000&&(own.life.length<=2||own.hand.length<=4);
     if(keepForDefense&&!['OP10-011','OP14-031'].includes(card.id))return false;
-    if(['OP01-016','EB02-017','EB04-002'].includes(card.id)&&own.deck.length<5)return false;
+    if(['OP01-016','EB02-017'].includes(card.id)&&(own.deck.length<5||own.hand.length>=8))return false;
+    if(card.id==='OP15-032'&&!foe.field.some(target=>!target.rested)&&own.field.length>=3)return false;
     return true;
   }
   if(card.id==='OP12-037'){
@@ -79,8 +95,10 @@ const playScore=(g,card)=>{
     if(['OP16-103','OP16-109','OP16-110'].includes(card.id))return turns<=3?148:88;
     if(card.id==='OP09-086')return 115+Math.min(35,own.trash.length*3);
     if(card.id==='OP16-106')return 108;
-    if(card.id==='OP16-104'||card.id==='OP12-112')return own.life.length<=2&&own.hand.length<=5?45:96;
-    if(Number(card.counter||0)>=2000)return own.life.length<=2?35:82;
+    if(card.id==='OP16-104')return foe.field.some(target=>Number(target.power||0)+Number(target.tempPower||0)>=7000)?108:38;
+    if(card.id==='OP12-112')return own.hand.length>=7&&own.life.length>=3?88:28;
+    if(card.id==='OP16-109')return 92+foe.field.filter(target=>engineCost(g,'player',target)<=1).length*24;
+    if(Number(card.counter||0)>=2000)return own.life.length<=2||own.hand.length<=5?25:74;
   }
   if(card.id==='OP01-016'||card.id==='EB02-017'||card.id==='EB04-002')return turns<=2?125:(own.hand.length<=4?62:82);
   if(card.id==='OP14-031')return 108+(own.life.length<=2?30:0)+foe.field.filter(c=>!c.rested&&(c.cost||0)<=8).length*8;
