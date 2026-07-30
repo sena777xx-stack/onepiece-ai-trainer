@@ -305,7 +305,15 @@ const chooseBestAttack=async(engine,attempted)=>{
 export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;
 const hasUnattacked=[g.sides.ai.leader,...g.sides.ai.field].some(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
 const p=await chooseBestPlay(engine,attempted,hasUnattacked);
-if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
+if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);
+if(played&&p.id==='OP09-093'&&typeof engine.useTeach10==='function'){
+  const foe=g.sides.player;
+  const target=foe.field.slice().sort((a,b)=>Number(b.cost||0)-Number(a.cost||0)||Number(b.power||0)-Number(a.power||0))[0]||null;
+  if(engine.useTeach10('ai',target?.uid||null)){
+    await show('10コスト・ティーチで相手リーダー'+(target?'と'+target.name:'')+'の効果を無効にします');
+  }
+}
+continue}
 if(!attempted.has('__luffy_support__')){
   attempted.add('__luffy_support__');
   const own=g.sides.ai;
