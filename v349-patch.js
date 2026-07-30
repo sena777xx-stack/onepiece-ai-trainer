@@ -758,3 +758,60 @@ GameEngine.prototype.endTurn=async function(side){
   }
   return previousOP13027EndTurn349.call(this,side);
 };
+
+
+/* OP13-118 Monkey.D.Luffy: Double Attack and multicolor-Leader on-play effect. */
+const previousOP13118Play349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const own=this.state.sides[side],source=own.hand.find(card=>card.uid===uid);
+  if(source?.type==='character'&&(source.cost||0)>=5&&own.op13118NoHighCostThroughTurn===this.state.turn){
+    this.log('OP13-118 ルフィの効果により、このターンは元々のコスト5以上のキャラを登場できません');
+    return false;
+  }
+  const result=await previousOP13118Play349.call(this,side,uid);
+  if(!result||source?.id!=='OP13-118')return result;
+  if((own.leader.color||[]).length>1){
+    const amount=Math.min(4,own.don.rested);
+    own.don.rested-=amount;
+    own.don.active+=amount;
+    own.op13118NoHighCostThroughTurn=this.state.turn;
+    this.log(source.name+'の登場時：DON!!を'+amount+'枚アクティブにした');
+    this.log('このターン中、元々のコスト5以上のキャラは登場できません');
+  }
+  return result;
+};
+
+const previousOP13118Damage349=GameEngine.prototype.resolveDamage;
+GameEngine.prototype.resolveDamage=function(){
+  const battle=this.state.pending;
+  if(battle?.kind==='battle'&&battle.targetKind==='leader'&&battle.power>=battle.targetPower+battle.counterPower){
+    const own=this.state.sides[battle.attackingSide];
+    const attacker=[own.leader,...own.field].find(card=>card.uid===battle.attackerUid);
+    if(attacker?.id==='OP13-118'){
+      this.state.op13118ExtraDamage={defendingSide:battle.defendingSide,attackingSide:battle.attackingSide};
+      this.log(attacker.name+'のダブルアタック');
+    }
+  }
+  return previousOP13118Damage349.call(this);
+};
+
+const previousOP13118Trigger349=GameEngine.prototype.resolveTrigger;
+GameEngine.prototype.resolveTrigger=async function(use){
+  const wasLifeReveal=this.state.pending?.kind==='lifeReveal';
+  const result=await previousOP13118Trigger349.call(this,use);
+  const extra=this.state.op13118ExtraDamage;
+  if(!wasLifeReveal||!extra)return result;
+  this.state.op13118ExtraDamage=null;
+  const defender=this.state.sides[extra.defendingSide];
+  if(!defender.life.length){
+    defender.defeated=true;
+    this.log('ダブルアタックの2ダメージ目：ライフ0のリーダーへダメージ');
+    this.state.pending=null;
+    return this.checkWin();
+  }
+  const lifeCard=defender.life.pop(),hasTrigger=(lifeCard.effects||[]).some(effect=>effect.timing==='trigger');
+  this.state.pending={kind:'lifeReveal',side:extra.defendingSide,card:lifeCard,resumeSide:extra.attackingSide,hasTrigger};
+  this.state.phase='lifeReveal';
+  this.log('ダブルアタックの2ダメージ目：ライフから'+lifeCard.name+'を公開');
+  return true;
+};
