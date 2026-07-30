@@ -2320,3 +2320,29 @@ GameEngine.prototype.mulligan=function(side,keep){
   if(Object.values(this.state.sides).every(value=>value.mulliganDone))this.placeLifeAndBegin();
   return true;
 };
+
+
+/* Add a reversible Back action to player effect-choice dialogs.
+   The normal undo snapshot restores the card, hand, DON!! and pending state
+   together, so cancelling midway never leaves a partially paid effect. */
+const previousEffectChoiceBackRender349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  const result=previousEffectChoiceBackRender349.call(this,g);
+  const pending=g?.pending;
+  if(!pending||pending.side!=='player'||!/Choice$/.test(String(pending.kind||''))||pending.kind==='battle')return result;
+  const modal=this.modal;
+  if(!modal||modal.querySelector('[data-effect-back-349]'))return result;
+  const button=document.createElement('button');
+  button.type='button';
+  button.dataset.effectBack349='true';
+  button.className='effect-back-button';
+  button.textContent='戻る';
+  button.addEventListener('click',()=>{
+    this.close();
+    if(typeof this.a?.undo==='function')this.a.undo();
+  });
+  const footer=modal.querySelector('.redirect-footer,.sheet-actions,.dialog-actions');
+  if(footer)footer.insertBefore(button,footer.firstChild);
+  else modal.querySelector('section')?.append(button);
+  return result;
+};
