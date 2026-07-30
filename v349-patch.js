@@ -1601,3 +1601,25 @@ GameEngine.prototype.beginTurn=async function(side){
   }
   return result;
 };
+
+
+/* Hard-disable paid counter Events when their DON!! cost cannot be paid. */
+const previousPaidCounterDefense349=UI.prototype.defense;
+UI.prototype.defense=function(g){
+  previousPaidCounterDefense349.call(this,g);
+  const battle=g.pending,own=g.sides.player;
+  if(battle?.kind!=='battle'||battle.step!=='counter'||battle.defendingSide!=='player')return;
+  for(const card of own.hand.filter(item=>item.id==='OP13-040'||item.id==='OP12-037')){
+    const button=this.modal?.querySelector('.counter-grid button[data-id="'+card.uid+'"]');
+    if(!button)continue;
+    const usable=battle.targetKind==='leader'&&own.don.active>=1;
+    button.disabled=!usable;
+    button.setAttribute('aria-disabled',usable?'false':'true');
+    button.style.pointerEvents=usable?'auto':'none';
+    button.style.opacity=usable?'1':'.38';
+    if(!usable)button.classList.remove('selected');
+    let cost=button.querySelector('[data-paid-counter-cost]');
+    if(!cost){cost=document.createElement('small');cost.dataset.paidCounterCost='true';button.append(cost)}
+    cost.textContent=usable?'使用コスト：DON!!1枚':'DON!!不足・使用不可';
+  }
+};
