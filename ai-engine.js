@@ -177,6 +177,46 @@ const combatOutlook=(g,attempted=new Set())=>{
   const needed=Math.max(1,foe.life.length+1);
   return{score:pressure*10+effectiveDamage*18-activeBlockers*8,lethal:effectiveDamage>=needed,damage,effectiveDamage,needed,activeBlockers};
 };
+const opponentTurnRisk=g=>{
+  const own=g.sides.ai,foe=g.sides.player;
+  const leaderPower=Number(own.leader?.power||0)+Number(own.leader?.tempPower||0);
+  const attackers=[foe.leader,...foe.field].filter(card=>(card.preventAttackThroughTurn??-1)<g.turn+1);
+  const attackPowers=attackers.map(battlePower).sort((a,b)=>b-a);
+  let bonusDon=Math.max(0,Number(foe.don?.total||0)),dangerous=0;
+  for(const base of attackPowers){
+    const need=Math.max(0,leaderPower-base);
+    const use=Math.min(bonusDon,Math.ceil(need/1000));
+    bonusDon-=use;
+    if(base+use*1000>=leaderPower)dangerous++;
+  }
+  const blockers=own.field.filter(card=>(card.keywords||[]).includes('blocker')).length;
+  const counterValue=own.hand.reduce((sum,card)=>sum+Math.max(0,Number(card.counter||0)),0);
+  const counterStops=Math.floor(counterValue/2000);
+  const leaderDonStops=own.leader?.id==='OP13-001'?Math.floor(Number(own.don?.active||0)/2):0;
+  const unguarded=Math.max(0,dangerous-blockers-counterStops-leaderDonStops);
+  const lethalRisk=Math.max(0,unguarded-own.life.length);
+  return unguarded*14+lethalRisk*120+(own.life.length<=1?unguarded*18:0);
+};
+const stateTacticalValue=(g,attempted)=>positionScore(g)+combatOutlook(g,attempted).score*1.7-opponentTurnRisk(g)*1.4;
+const bestSecondPlayValue=async(engine,attempted)=>{
+  const base=stateTacticalValue(engine.state,attempted);
+  if(engine.state.pending||engine.state.winner)return base;
+  const options=engine.state.sides.ai.hand
+    .filter(card=>legalPlay(engine.state,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(engine.state,card))
+    .sort((a,b)=>playScore(engine.state,b)-playScore(engine.state,a)).slice(0,6);
+  let best=base;
+  for(const card of options){
+    const next=cloneForLookahead(engine);
+    let ok=false;
+    try{ok=Boolean(await next.playCard('ai',card.uid))}catch{}
+    if(!ok)continue;
+    let value=stateTacticalValue(next.state,attempted)+playScore(engine.state,card)*.04;
+    if(next.state.winner==='ai')value+=10000;
+    if(next.state.pending?.side==='ai')value-=12;
+    best=Math.max(best,value);
+  }
+  return best;
+};
 const preCombatPlayUseful=(g,card)=>{
   const foe=g.sides.player;
   if(card.id==='ST31-005'&&!g.sides.ai.stage)return true;
@@ -197,6 +237,12 @@ const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
     const tactical=preCombatPlayUseful(g,card)||(!beforeCombat.lethal&&afterCombat.lethal)||afterCombat.score>=beforeCombat.score+10;
     if(preCombatOnly&&!tactical)continue;
     let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card)+(afterCombat.score-beforeCombat.score)*2;
+    const safetyBefore=opponentTurnRisk(g),safetyAfter=opponentTurnRisk(shadow.state);
+    score+=(safetyBefore-safetyAfter)*1.8;
+    if(!preCombatOnly&&!shadow.state.pending){
+      const continuation=await bestSecondPlayValue(shadow,attempted);
+      score+=(continuation-stateTacticalValue(shadow.state,attempted))*.55;
+    }
     if(!beforeCombat.lethal&&afterCombat.lethal)score+=1500;
     if(beforeCombat.lethal&&!afterCombat.lethal)score-=1800;
     if(shadow.state.pending?.side==='ai')score-=18;
