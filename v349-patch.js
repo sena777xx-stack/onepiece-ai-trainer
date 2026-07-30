@@ -1975,6 +1975,7 @@ GameEngine.prototype.resolveOP13001DefenseBoost=function(side,targetUids=[]){
     for(const uid of chosen){
       const target=eligible.find(card=>card.uid===uid);if(!target)continue;
       target.tempPower=(target.tempPower||0)+2000;
+      if(battle.targetUid===uid)battle.targetPower+=2000;
       battle.op13001Buffs.push(uid);
     }
     const summary=eligible.filter(card=>chosen.includes(card.uid)).map(card=>{
@@ -1982,6 +1983,8 @@ GameEngine.prototype.resolveOP13001DefenseBoost=function(side,targetUids=[]){
     });
     this.log('OP13-001 リーダー効果：DON!!'+count+'枚をレスト（'+summary.join('、')+'）');
   }else this.log('OP13-001 リーダー効果を使用しませんでした');
+  const hasBlocker=own.field.some(card=>!card.rested&&(card.keywords||[]).includes('blocker'));
+  if(!hasBlocker&&battle.step==='block')this.chooseBlock(side,null);
   return true;
 };
 const previousOP13001EndBattle349=GameEngine.prototype.endBattle;
@@ -2044,4 +2047,22 @@ UI.prototype.defense=function(g,...args){
   const skip=document.createElement('button');skip.textContent='効果を使わない';
   skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP13001DefenseBoost('player',[]);this.defense(engineRef.state)});
   foot.append(reset,confirm,skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);refresh();
+};
+
+
+/* Keep the counter controls usable after the OP13-001 leader prompt. */
+const previousOP13001CounterVisible349=UI.prototype.defense;
+UI.prototype.defense=function(g,...args){
+  const result=previousOP13001CounterVisible349.call(this,g,...args);
+  const battle=g.pending;
+  if(battle?.kind!=='battle'||battle.defendingSide!=='player'||battle.step!=='counter'||!this.modal)return result;
+  const grid=this.modal.querySelector('.counter-grid');
+  if(grid){grid.hidden=false;grid.style.display='grid'}
+  const blockArea=this.modal.querySelector('.blocker-choice');
+  if(blockArea)blockArea.hidden=true;
+  const primary=[...this.modal.querySelectorAll('button')].find(button=>button.textContent.trim()==='防御を確定');
+  if(primary){primary.hidden=false;primary.disabled=false;primary.style.display=''}
+  const receive=[...this.modal.querySelectorAll('button')].find(button=>button.textContent.trim()==='そのまま受ける');
+  if(receive){receive.hidden=false;receive.disabled=false}
+  return result;
 };
