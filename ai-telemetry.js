@@ -22,7 +22,14 @@ export function recordAiMatch(state){
   state._aiTelemetryRecorded=true;
   const data=read(),key=matchupKey(state),row=data.matchups[key]||{turns:0,matches:0,wins:0,losses:0,lethalMisses:0,donWasted:0,stalls:0};
   row.matches++;if(state.winner==='ai')row.wins++;else row.losses++;row.updatedAt=Date.now();
-  data.matchups[key]=row;write(data);
+  data.matchups[key]=row;
+  data.cardStats??={};data.cardStats[key]??={};
+  const played=[...new Set(state._aiPlayedCards?.ai||[])],won=state.winner==='ai';
+  for(const id of played){
+    const card=data.cardStats[key][id]||{games:0,wins:0};
+    card.games++;if(won)card.wins++;data.cardStats[key][id]=card;
+  }
+  write(data);
 }
 export function getAiPolicyBias(state){
   const row=read().matchups[matchupKey(state)];
