@@ -2381,3 +2381,36 @@ UI.prototype.targets=function(items){
   foot.append(back);body.append(help,grid);panel.append(head,body,foot);overlay.append(panel);
   this.modal=overlay;document.body.append(overlay);
 };
+
+
+/* Allow the player to inspect the current hand without leaving a Life trigger choice. */
+const previousLifeRevealHandCheck349=UI.prototype.lifeRevealPrompt;
+UI.prototype.lifeRevealPrompt=function(pending){
+  const result=previousLifeRevealHandCheck349.call(this,pending);
+  const actions=this.modal?.querySelector('.actions');
+  if(!actions||actions.querySelector('[data-check-hand-349]'))return result;
+  const check=document.createElement('button');check.type='button';check.dataset.checkHand349='true';check.textContent='手札を確認';
+  check.addEventListener('click',()=>{
+    const engine=window.__luffyEngine349,hand=engine?.state?.sides?.player?.hand||[];
+    const overlay=document.createElement('div');overlay.className='dialog hand-check-overlay';
+    const panel=document.createElement('section');panel.className='redirect-flow';
+    const head=document.createElement('div');head.className='redirect-head';head.innerHTML='<small>確認</small><h2>現在の手札</h2>';
+    const body=document.createElement('div');body.className='redirect-body';
+    const count=document.createElement('p');count.textContent='手札 '+hand.length+'枚';
+    const grid=document.createElement('div');grid.className='effect-target-grid';
+    for(const card of hand){
+      const item=document.createElement('div');item.className='hand-check-card';
+      if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;item.append(image)}
+      const name=document.createElement('strong');name.textContent=card.name;item.append(name);
+      const info=document.createElement('small');info.textContent=card.id+'　コスト '+(card.cost??'-')+'　カウンター '+(card.counter??0);item.append(info);
+      grid.append(item);
+    }
+    if(!hand.length){const empty=document.createElement('p');empty.textContent='手札はありません。';body.append(count,empty)}
+    else body.append(count,grid);
+    const foot=document.createElement('div');foot.className='redirect-footer single';
+    const close=document.createElement('button');close.type='button';close.className='primary';close.textContent='トリガー選択へ戻る';close.addEventListener('click',()=>overlay.remove());
+    foot.append(close);panel.append(head,body,foot);overlay.append(panel);document.body.append(overlay);
+  });
+  actions.insertBefore(check,actions.firstChild);
+  return result;
+};
