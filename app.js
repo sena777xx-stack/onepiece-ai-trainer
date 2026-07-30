@@ -4,11 +4,15 @@ actions.selfPlay=async()=>{
   const requested=Number(prompt('AI同士で検証する試合数（1～10000）','100'));
   if(!Number.isFinite(requested)||requested<1)return;
   const count=Math.min(10000,Math.floor(requested));
+  const order=prompt('先攻設定を選んでください\n1：先攻後攻を交互\n2：左側を先攻\n3：右側を先攻','1');
+  if(order===null)return;
+  const firstMode=order==='2'?'left':order==='3'?'right':'alternate';
   ui.toast?.('AI同士の対戦を開始します');
   const result=await runSelfPlay(cardCatalog,playerDecks[selectedPlayerDeck],aiDecks[selectedAiDeck],count,progress=>{
     if(progress.completed%50===0)ui.toast?.('AI検証 '+progress.completed+' / '+count);
-  });
-  alert('AI対AI 検証完了\n'+playerDecks[selectedPlayerDeck].name+' '+result.leftWins+'勝\n'+aiDecks[selectedAiDeck].name+' '+result.rightWins+'勝\n引き分け・停止 '+result.draws+'試合\n平均 '+result.averageTurns+'ターン');
+  },firstMode);
+  const orderLabel=firstMode==='left'?'左側が先攻':firstMode==='right'?'右側が先攻':'先攻後攻を交互';
+  alert('AI対AI 検証完了\n先攻設定：'+orderLabel+'\n'+playerDecks[selectedPlayerDeck].name+' '+result.leftWins+'勝\n'+aiDecks[selectedAiDeck].name+' '+result.rightWins+'勝\n引き分け・停止 '+result.draws+'試合\n平均 '+result.averageTurns+'ターン');
 };
 actions.chooseBlock=blockerUid=>{ui.close();const ok=engine.chooseBlock('player',blockerUid);render();if(!ok)ui.toast('ブロッカーを選択できませんでした')};
 actions.bulkMove=(side,from,to,ids)=>{ui.close();for(const id of ids)engine.manualMove(side,from,to,id);render()};actions.useTrigger=async(side,id)=>{ui.close();await engine.useTrigger(side,id);render()};actions.zone=(side,zone)=>zone==='deck'?ui.showDeck(side,engine.state):zone==='life'?ui.showLife(side,engine.state):ui.showZone(side,zone,engine.state);actions.target=async id=>{ui.close();await engine.declareAttack('player',attacker,id);if(engine.state.pending?.defendingSide==='ai')await engine.autoResolveDefense();if(engine.state.pending?.kind==='trigger'&&engine.state.pending.side==='ai')await engine.resolveTrigger(true);render()};actions.triggerChoice=async use=>{ui.close();await engine.resolveTrigger(use);render();maybeAi()};
