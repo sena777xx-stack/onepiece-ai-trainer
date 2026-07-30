@@ -2471,3 +2471,55 @@ UI.prototype.lifeRevealPrompt=function(pending){
   if(hand?.nextSibling)actions.insertBefore(check,hand.nextSibling);else actions.insertBefore(check,actions.firstChild);
   return result;
 };
+
+
+/* Battle result and post-game review. */
+UI.prototype.showBattleReview349=function(g){
+  this.close();
+  const overlay=document.createElement('div');overlay.className='dialog battle-review-overlay';
+  const panel=document.createElement('section');panel.className='redirect-flow battle-review-sheet';
+  const head=document.createElement('div');head.className='redirect-head';head.innerHTML='<small>振り返り</small><h2>対戦結果の確認</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const summary=document.createElement('div');summary.className='battle-review-summary';
+  for(const [label,side] of [['自分','player'],['AI','ai']]){
+    const s=g.sides[side],box=document.createElement('div');
+    const title=document.createElement('strong');title.textContent=label+'：'+s.leader.name;
+    const info=document.createElement('p');info.textContent='ライフ '+s.life.length+' / 手札 '+s.hand.length+' / デッキ '+s.deck.length+' / 場 '+s.field.length+' / トラッシュ '+s.trash.length;
+    box.append(title,info);summary.append(box);
+  }
+  const logTitle=document.createElement('h3');logTitle.textContent='対戦ログ';
+  const logs=document.createElement('div');logs.className='battle-review-log';
+  for(const entry of g.log.slice(-80)){
+    const row=document.createElement('p');row.textContent=entry.text||String(entry);logs.append(row);
+  }
+  body.append(summary,logTitle,logs);
+  const foot=document.createElement('div');foot.className='redirect-footer';
+  const board=document.createElement('button');board.type='button';board.textContent='最終盤面を見る';board.addEventListener('click',()=>this.close());
+  const result=document.createElement('button');result.type='button';result.className='primary';result.textContent='結果画面へ戻る';result.addEventListener('click',()=>this.showBattleResult349(g));
+  foot.append(board,result);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
+UI.prototype.showBattleResult349=function(g){
+  this.close();
+  const won=g.winner==='player';
+  const overlay=document.createElement('div');overlay.className='dialog battle-result-overlay';
+  const panel=document.createElement('section');panel.className='redirect-flow battle-result-sheet '+(won?'win':'lose');
+  const head=document.createElement('div');head.className='redirect-head';
+  const label=document.createElement('small');label.textContent='BATTLE RESULT';
+  const result=document.createElement('h2');result.textContent=won?'WIN':'LOSE';
+  const note=document.createElement('p');note.textContent=won?'バトルに勝利しました':'バトルに敗北しました';
+  head.append(label,result,note);
+  const foot=document.createElement('div');foot.className='redirect-footer';
+  const review=document.createElement('button');review.type='button';review.textContent='振り返り';review.addEventListener('click',()=>this.showBattleReview349(g));
+  const home=document.createElement('button');home.type='button';home.className='primary';home.textContent='最初の画面に戻る';home.addEventListener('click',()=>{this.close();this._battleResultShown349=false;this.a.home()});
+  foot.append(review,home);panel.append(head,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
+const previousBattleResultRender349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  const result=previousBattleResultRender349.call(this,g);
+  if(!g?.winner){this._battleResultShown349=false;return result}
+  if(!this._battleResultShown349){
+    this._battleResultShown349=true;
+    this.showBattleResult349(g);
+  }
+  return result;
+};
