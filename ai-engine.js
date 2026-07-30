@@ -321,6 +321,29 @@ const chooseBestAttack=async(engine,attempted)=>{
   }
   return choices.sort((a,b)=>b.score-a.score||battlePower(b.attacker)-battlePower(a.attacker)||String(a.attacker.id).localeCompare(String(b.attacker.id))||String(a.target.uid).localeCompare(String(b.target.uid)))[0]||null;
 };
+const resolveAiPostPlayChoices=async engine=>{
+  for(let guard=0;guard<8;guard++){
+    const pending=engine.state.pending;
+    if(!pending||pending.side!=='ai')break;
+    const own=engine.state.sides.ai;
+    if(pending.kind==='teach119OnPlayChoice'){
+      const chosen=(pending.cards||[]).slice().sort((a,b)=>(hasTrigger(b)?1:0)-(hasTrigger(a)?1:0)||teachSearchPriority(engine.state,b)-teachSearchPriority(engine.state,a))[0];
+      engine.resolveTeachKoChoice('ai',chosen?[chosen.uid]:[]);
+    }else if(pending.kind==='borsalinoLifeChoice'&&typeof engine.resolveBorsalinoChoice==='function'){
+      engine.resolveBorsalinoChoice('ai',own.life.length<=2&&own.deck.length>0);
+    }else if(pending.kind==='shiryuDiscardChoice'&&typeof engine.resolveShiryuChoice==='function'){
+      const hasLifeTarget=own.trash.some(card=>Number(card.cost||99)<=6&&(card.traits||[]).includes('黒ひげ海賊団'));
+      const discard=hasLifeTarget&&own.hand.length>=3?own.hand.slice().sort((a,b)=>teachDiscardPenalty(engine.state,a)-teachDiscardPenalty(engine.state,b))[0]:null;
+      engine.resolveShiryuChoice('ai',discard?.uid||null);
+    }else if(pending.kind==='shiryuLifeChoice'&&typeof engine.resolveShiryuChoice==='function'){
+      const chosen=(pending.options||[]).map(uid=>own.trash.find(card=>card.uid===uid)).filter(Boolean).sort((a,b)=>teachSearchPriority(engine.state,b)-teachSearchPriority(engine.state,a))[0];
+      engine.resolveShiryuChoice('ai',chosen?.uid||null);
+    }else if(pending.kind==='luffyNamiSearch'&&typeof engine.resolveLuffyNamiSearch==='function'){
+      const chosen=(pending.cards||[]).filter(card=>(pending.options||[]).includes(card.uid)).sort((a,b)=>playScore(engine.state,b)-playScore(engine.state,a))[0];
+      engine.resolveLuffyNamiSearch('ai',chosen?.uid||null);
+    }else break;
+  }
+};
 export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;
 if(!attempted.has('__hachinosu__')){
   attempted.add('__hachinosu__');
@@ -338,7 +361,7 @@ if(!attempted.has('__hachinosu__')){
 }
 const hasUnattacked=[g.sides.ai.leader,...g.sides.ai.field].some(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
 const p=await chooseBestPlay(engine,attempted,hasUnattacked);
-if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);
+if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);if(played)await resolveAiPostPlayChoices(engine);onStep();await wait(650);if(!played)attempted.add(p.uid);
 if(played&&p.id==='OP09-093'&&typeof engine.useTeach10==='function'){
   const foe=g.sides.player;
   const target=foe.field.slice().sort((a,b)=>Number(b.cost||0)-Number(a.cost||0)||Number(b.power||0)-Number(a.power||0))[0]||null;
