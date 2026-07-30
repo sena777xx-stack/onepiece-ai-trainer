@@ -1353,3 +1353,28 @@ UI.prototype.renderGame=function(g){
   syncOP15032Image349(g);
   return previousOP15032ImageRender349.call(this,g);
 };
+
+
+/* Hand-card detail: show the full card image above its text. */
+const previousHandCardImageShowCard349=UI.prototype.showCard;
+UI.prototype.showCard=function(side,card,g){
+  previousHandCardImageShowCard349.call(this,side,card,g);
+  const isHandCard=Boolean(g?.sides?.[side]?.hand?.some(item=>item.uid===card.uid));
+  if(!isHandCard||!card.imageUrl)return;
+  const panel=this.modal?.querySelector('.sheet');
+  const title=panel?.querySelector('h2');
+  if(!panel||!title||panel.querySelector('[data-hand-card-preview]'))return;
+  panel.style.maxHeight='88dvh';
+  panel.style.overflowY='auto';
+  panel.style.webkitOverflowScrolling='touch';
+  const preview=document.createElement('div');
+  preview.dataset.handCardPreview='true';
+  preview.style.cssText='display:flex;justify-content:center;align-items:center;margin:10px 0 14px;min-height:0';
+  const image=document.createElement('img');
+  image.src=card.imageUrl;
+  image.alt=card.name+'のカード画像';
+  image.loading='eager';
+  image.style.cssText='display:block;width:min(44vw,180px);height:auto;max-height:36dvh;object-fit:contain;border-radius:9px;border:1px solid rgba(255,255,255,.28);box-shadow:0 8px 22px rgba(0,0,0,.38)';
+  preview.append(image);
+  title.insertAdjacentElement('afterend',preview);
+};
