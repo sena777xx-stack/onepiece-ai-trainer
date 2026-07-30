@@ -213,6 +213,21 @@ const bestSecondPlayValue=async(engine,attempted)=>{
     let value=stateTacticalValue(next.state,attempted)+playScore(engine.state,card)*.04;
     if(next.state.winner==='ai')value+=10000;
     if(next.state.pending?.side==='ai')value-=12;
+    if(!next.state.pending&&!next.state.winner&&next.state.sides.player.life.length<=2){
+      const thirdOptions=next.state.sides.ai.hand
+        .filter(item=>legalPlay(next.state,'ai',item)&&!attempted.has(item.uid)&&usefulMainEvent(next.state,item))
+        .sort((a,b)=>playScore(next.state,b)-playScore(next.state,a)).slice(0,3);
+      for(const thirdCard of thirdOptions){
+        const third=cloneForLookahead(next);
+        let thirdOk=false;
+        try{thirdOk=Boolean(await third.playCard('ai',thirdCard.uid))}catch{}
+        if(!thirdOk)continue;
+        let thirdValue=stateTacticalValue(third.state,attempted)+playScore(next.state,thirdCard)*.03;
+        if(third.state.winner==='ai')thirdValue+=10000;
+        if(third.state.pending?.side==='ai')thirdValue-=10;
+        value=Math.max(value,thirdValue);
+      }
+    }
     best=Math.max(best,value);
   }
   return best;
@@ -302,19 +317,36 @@ if(!attempted.has('__luffy_support__')){
       await show('サウザンド・サニー号でレストのDON!!をルフィへ付与します');
     }
   }
-  const ready=[own.leader,...own.field].filter(card=>legalAttack(g,'ai',card))
-    .sort((a,b)=>((b.power||0)+(b.tempPower||0))-((a.power||0)+(a.tempPower||0)));
+  const ready=[own.leader,...own.field].filter(card=>legalAttack(g,'ai',card));
   if(own.don.active>0&&ready.length){
     let attached=0;
     if(own.leader?.id==='OP13-001'&&ready.some(card=>card.uid===own.leader.uid)&&own.don.active>0){
       if(engine.attachDon('ai',own.leader.uid,1))attached++;
     }
-    const attacker=ready.find(card=>card.uid!==own.leader.uid)||ready[0];
-    const reserve=desiredLuffyDefenseDon(g);
-    const spendable=Math.max(0,own.don.active-reserve);
-    if(attacker&&spendable>0&&engine.attachDon('ai',attacker.uid,spendable))attached+=spendable;
+    const outlookNow=combatOutlook(g,attempted);
+    const reserve=outlookNow.lethal?0:desiredLuffyDefenseDon(g);
+    let spendable=Math.max(0,own.don.active-reserve);
+    const leaderPower=Number(g.sides.player.leader?.power||0)+Number(g.sides.player.leader?.tempPower||0);
+    const lines=outlookNow.lethal?[leaderPower,leaderPower+2000,leaderPower+4000]:[leaderPower,leaderPower+2000];
+    for(const line of lines){
+      const candidates=ready.map(card=>({card,need:Math.max(0,Math.ceil((line-battlePower(card))/1000))}))
+        .filter(item=>item.need>0&&item.need<=spendable)
+        .sort((a,b)=>a.need-b.need||battlePower(a.card)-battlePower(b.card));
+      while(candidates.length&&spendable>0){
+        const item=candidates.shift();
+        if(item.need>spendable)continue;
+        if(engine.attachDon('ai',item.card.uid,item.need)){attached+=item.need;spendable-=item.need}
+      }
+    }
+    if(spendable>0&&(outlookNow.lethal||g.sides.player.life.length<=2)){
+      const finisher=ready.slice().sort((a,b)=>{
+        const bd=(b.keywords||[]).includes('doubleAttack')?1:0,ad=(a.keywords||[]).includes('doubleAttack')?1:0;
+        return bd-ad||battlePower(b)-battlePower(a);
+      })[0];
+      if(finisher&&engine.attachDon('ai',finisher.uid,spendable)){attached+=spendable;spendable=0}
+    }
     if(attached>0){
-      await show('攻撃役へDON!!を'+attached+'枚付与します');
+      await show('有効な攻撃ラインへDON!!を'+attached+'枚配分します');
       continue;
     }
   }
