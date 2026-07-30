@@ -2431,3 +2431,43 @@ GameEngine.prototype.declareAttack=async function(side,attackerId,targetId){
   }
   return result;
 };
+
+
+/* Inspect both battlefields without resolving or closing the Life trigger. */
+const previousLifeRevealFieldCheck349=UI.prototype.lifeRevealPrompt;
+UI.prototype.lifeRevealPrompt=function(pending){
+  const result=previousLifeRevealFieldCheck349.call(this,pending);
+  const actions=this.modal?.querySelector('.actions');
+  if(!actions||actions.querySelector('[data-check-field-349]'))return result;
+  const check=document.createElement('button');check.type='button';check.dataset.checkField349='true';check.textContent='場を確認';
+  check.addEventListener('click',()=>{
+    const engine=window.__luffyEngine349,state=engine?.state;
+    const overlay=document.createElement('div');overlay.className='dialog field-check-overlay';
+    const panel=document.createElement('section');panel.className='redirect-flow';
+    const head=document.createElement('div');head.className='redirect-head';head.innerHTML='<small>確認</small><h2>現在の場</h2>';
+    const body=document.createElement('div');body.className='redirect-body';
+    const addSide=(side,label)=>{
+      const sideState=state?.sides?.[side];
+      const title=document.createElement('h3');title.textContent=label;
+      const grid=document.createElement('div');grid.className='effect-target-grid';
+      const cards=[sideState?.leader,...(sideState?.field||[])].filter(Boolean);
+      for(const card of cards){
+        const item=document.createElement('div');item.className='hand-check-card field-check-card';
+        if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;item.append(image)}
+        const name=document.createElement('strong');name.textContent=card===sideState.leader?'リーダー：'+card.name:card.name;item.append(name);
+        const donPower=state?.activeSide===side?Number(card.attachedDon||0)*1000:0;
+        const power=Number(card.power||0)+Number(card.tempPower||0)+donPower;
+        const info=document.createElement('small');info.textContent='パワー '+power+' / '+(card.rested?'レスト':'アクティブ')+' / 付与DON!! '+Number(card.attachedDon||0);item.append(info);
+        grid.append(item);
+      }
+      body.append(title,grid);
+    };
+    addSide('ai','相手の場');addSide('player','自分の場');
+    const foot=document.createElement('div');foot.className='redirect-footer single';
+    const close=document.createElement('button');close.type='button';close.className='primary';close.textContent='トリガー選択へ戻る';close.addEventListener('click',()=>overlay.remove());
+    foot.append(close);panel.append(head,body,foot);overlay.append(panel);document.body.append(overlay);
+  });
+  const hand=actions.querySelector('[data-check-hand-349]');
+  if(hand?.nextSibling)actions.insertBefore(check,hand.nextSibling);else actions.insertBefore(check,actions.firstChild);
+  return result;
+};
