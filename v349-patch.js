@@ -1378,3 +1378,145 @@ UI.prototype.showCard=function(side,card,g){
   preview.append(image);
   title.insertAdjacentElement('afterend',preview);
 };
+
+
+/* OP13-040 I Know You're Strong... So I'll Go All Out:
+   Main — optionally rest 2 additional DON!! and prevent up to 2 rested,
+   cost-7-or-less opposing Characters from becoming active next refresh.
+   Counter/Trigger — defending Leader +3000 for the battle. */
+function syncOP13040Runtime349(state){
+  if(!state?.sides)return;
+  const cards=[];
+  for(const sideName of ['player','ai']){
+    const side=state.sides[sideName];if(!side)continue;
+    if(side.leader)cards.push(side.leader);
+    if(side.stage)cards.push(side.stage);
+    for(const zone of ['deck','hand','life','field','trash'])if(Array.isArray(side[zone]))cards.push(...side[zone]);
+  }
+  if(state.pending?.card)cards.push(state.pending.card);
+  if(Array.isArray(state.pending?.cards))cards.push(...state.pending.cards);
+  for(const card of cards){
+    if(card?.id!=='OP13-040')continue;
+    card.name='強ェとわかってんだから… 始めから全開だ!!!';
+    card.type='event';card.color=['green'];card.cost=1;card.power=0;card.counter=3000;
+    card.traits=['超新星','麦わらの一味'];
+    card.text='【メイン】自分のDON!!2枚をレストにできる：相手のレストのコスト7以下のキャラ2枚までは、次の相手のリフレッシュフェーズでアクティブにならない。【カウンター】自分のリーダーを、このバトル中、パワー+3000。【トリガー】このカードの【カウンター】効果を発動する。';
+    card.effects=[{timing:'trigger',action:'op13040CounterTrigger'}];
+  }
+}
+const previousOP13040Play349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  syncOP13040Runtime349(this.state);
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousOP13040Play349.call(this,side,uid);
+  if(!result||source?.id!=='OP13-040')return result;
+  const own=this.state.sides[side],foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  const options=foe.field.filter(card=>card.rested&&this.effectiveCost(foeSide,card)<=7).map(card=>card.uid);
+  if(own.don.active<2){
+    this.log(source.name+'：追加コストのアクティブDON!!2枚がないため、メイン効果を使用しませんでした');
+    return result;
+  }
+  if(side==='ai'){
+    const targets=foe.field.filter(card=>options.includes(card.uid))
+      .sort((a,b)=>((b.power||0)+(b.tempPower||0))-((a.power||0)+(a.tempPower||0))).slice(0,2);
+    if(!targets.length){this.log(source.name+'：対象がないためメイン効果を使用しませんでした');return result}
+    own.don.active-=2;own.don.rested+=2;
+    for(const target of targets)target.preventNextActive=true;
+    this.log(source.name+'：'+targets.map(card=>card.name).join('、')+'を次のリフレッシュでアクティブ不可にした');
+    return result;
+  }
+  this.state.pending={kind:'op13040MainChoice',side,sourceName:source.name,options};
+  this.state.phase='effectChoice';
+  this.log(source.name+'：追加でDON!!2枚をレストにするか選択');
+  return result;
+};
+GameEngine.prototype.resolveOP13040MainChoice=function(side,targetUids=[],use=true){
+  const pending=this.state.pending;
+  if(pending?.kind!=='op13040MainChoice'||pending.side!==side)return false;
+  const own=this.state.sides[side],foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  if(!use){
+    this.log(pending.sourceName+'のメイン効果を使用しませんでした');
+    this.state.pending=null;this.state.phase='main';return true;
+  }
+  if(own.don.active<2){
+    this.log(pending.sourceName+'：追加コストのDON!!が不足しています');
+    this.state.pending=null;this.state.phase='main';return false;
+  }
+  const chosen=[...new Set(Array.isArray(targetUids)?targetUids:[targetUids])]
+    .filter(uid=>pending.options.includes(uid)).slice(0,2);
+  const targets=chosen.map(uid=>foe.field.find(card=>card.uid===uid&&card.rested&&this.effectiveCost(foeSide,card)<=7)).filter(Boolean);
+  own.don.active-=2;own.don.rested+=2;
+  for(const target of targets)target.preventNextActive=true;
+  this.log(pending.sourceName+'：'+(targets.length?targets.map(card=>card.name).join('、'):'対象なし')+'を次のリフレッシュでアクティブ不可にした');
+  this.state.pending=null;this.state.phase='main';return true;
+};
+const previousOP13040Trigger349=GameEngine.prototype.resolveTrigger;
+GameEngine.prototype.resolveTrigger=async function(use){
+  syncOP13040Runtime349(this.state);
+  const pending=this.state.pending;
+  if(use&&['trigger','lifeReveal'].includes(pending?.kind)&&pending.card?.id==='OP13-040'){
+    this.state.sides[pending.side].trash.push(pending.card);
+    this.log(pending.card.name+'のトリガー：カウンター効果（リーダー+3000）を発動');
+    return this.endBattle();
+  }
+  return previousOP13040Trigger349.call(this,use);
+};
+const previousOP13040ManualTrigger349=GameEngine.prototype.useTrigger;
+GameEngine.prototype.useTrigger=async function(side,uid){
+  syncOP13040Runtime349(this.state);
+  const own=this.state.sides[side],index=own.life.findIndex(card=>card.uid===uid&&card.id==='OP13-040');
+  if(index<0)return previousOP13040ManualTrigger349.call(this,side,uid);
+  this.snapshot();
+  const [card]=own.life.splice(index,1);own.trash.push(card);
+  this.log('[手動] '+card.name+'のトリガー：カウンター効果を発動');
+  return true;
+};
+const previousOP13040Start349=GameEngine.prototype.start;
+GameEngine.prototype.start=function(...args){
+  const result=previousOP13040Start349.apply(this,args);syncOP13040Runtime349(this.state);return result;
+};
+const previousOP13040Load349=GameEngine.prototype.load;
+GameEngine.prototype.load=function(saved){
+  const result=previousOP13040Load349.call(this,saved);syncOP13040Runtime349(this.state);return result;
+};
+const previousOP13040Render349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  syncOP13040Runtime349(g);
+  previousOP13040Render349.call(this,g);
+  if(g.pending?.kind!=='op13040MainChoice'||g.pending.side!=='player')return;
+  this.close();
+  const pending=g.pending,engineRef=window.__luffyEngine349,foe=g.sides.ai,chosen=new Set();
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>メイン効果</small><h2>OP13-040：対象を選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');help.textContent='追加で自分のDON!!2枚をレストにし、相手のレストのコスト7以下のキャラを2枚まで選びます。';
+  const status=document.createElement('p');
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  const refresh=()=>{
+    status.textContent='選択 '+chosen.size+' / 2枚';
+    for(const button of grid.querySelectorAll('button[data-id]'))button.classList.toggle('selected',chosen.has(button.dataset.id));
+  };
+  for(const uid of pending.options){
+    const card=foe.field.find(item=>item.uid===uid);if(!card)continue;
+    const button=document.createElement('button');button.dataset.id=card.uid;
+    if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
+    const name=document.createElement('strong');name.textContent=card.name;button.append(name);
+    const note=document.createElement('small');note.textContent='コスト '+engineRef.effectiveCost('ai',card)+' / パワー '+((card.power||0)+(card.tempPower||0));button.append(note);
+    button.addEventListener('click',()=>{
+      if(chosen.has(card.uid))chosen.delete(card.uid);
+      else if(chosen.size<2)chosen.add(card.uid);
+      refresh();
+    });
+    grid.append(button);
+  }
+  if(!pending.options.length){const empty=document.createElement('p');empty.textContent='選択できる相手キャラはいません。';grid.append(empty)}
+  body.append(help,status,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer';
+  const cancel=document.createElement('button');cancel.textContent='効果を使わない';
+  cancel.addEventListener('click',()=>{this.close();engineRef?.resolveOP13040MainChoice('player',[],false);this.renderGame(engineRef.state)});
+  const confirm=document.createElement('button');confirm.className='primary';confirm.textContent='DON!!2枚をレストして決定';
+  confirm.addEventListener('click',()=>{this.close();engineRef?.resolveOP13040MainChoice('player',[...chosen],true);this.renderGame(engineRef.state)});
+  foot.append(cancel,confirm);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);refresh();
+};
