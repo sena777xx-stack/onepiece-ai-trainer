@@ -1520,3 +1520,83 @@ UI.prototype.renderGame=function(g){
   confirm.addEventListener('click',()=>{this.close();engineRef?.resolveOP13040MainChoice('player',[...chosen],true);this.renderGame(engineRef.state)});
   foot.append(cancel,confirm);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);refresh();
 };
+
+
+/* OP13-040 reliability fix: pay the event's 1 DON!! counter cost and
+   keep selected Characters rested through their next refresh. */
+const previousOP13040CounterCost349=GameEngine.prototype.submitCounters;
+GameEngine.prototype.submitCounters=function(side,counterIds=[]){
+  syncOP13040Runtime349(this.state);
+  const battle=this.state.pending,own=this.state.sides[side];
+  if(battle?.kind==='battle'&&battle.step==='counter'&&battle.defendingSide===side){
+    const requested=Array.isArray(counterIds)?counterIds:[counterIds],accepted=[];
+    for(const uid of requested){
+      const card=own.hand.find(item=>item.uid===uid);
+      if(card?.id!=='OP13-040'){accepted.push(uid);continue}
+      if(battle.targetKind!=='leader'){
+        this.log(card.name+'：カウンター効果はリーダーへの攻撃時のみ使用できます');
+        continue;
+      }
+      if(own.don.active<1){
+        this.log(card.name+'：カウンターの使用コストとしてアクティブDON!!1枚が必要です');
+        continue;
+      }
+      own.don.active-=1;own.don.rested+=1;
+      accepted.push(uid);
+      this.log(card.name+'：使用コストのDON!!1枚をレスト');
+    }
+    return previousOP13040CounterCost349.call(this,side,accepted);
+  }
+  return previousOP13040CounterCost349.call(this,side,counterIds);
+};
+const previousOP13040CounterDefense349=UI.prototype.defense;
+UI.prototype.defense=function(g){
+  previousOP13040CounterDefense349.call(this,g);
+  const battle=g.pending,own=g.sides.player;
+  if(battle?.kind!=='battle'||battle.defendingSide!=='player')return;
+  for(const card of own.hand.filter(item=>item.id==='OP13-040')){
+    const button=this.modal?.querySelector('.counter-grid button[data-id="'+card.uid+'"]');
+    if(!button)continue;
+    const usable=battle.targetKind==='leader'&&own.don.active>=1;
+    button.disabled=!usable;
+    button.title=usable?'使用コスト：アクティブDON!!1枚':'リーダーへの攻撃時にアクティブDON!!1枚が必要です';
+    const note=document.createElement('small');
+    note.textContent=usable?'使用コスト：DON!!1枚':'現在は使用不可';
+    button.append(note);
+  }
+};
+function markOP13040RefreshLock349(target){
+  target.preventNextActive=true;
+  target.op13040RefreshLock=true;
+}
+const previousOP13040ResolveChoiceReliable349=GameEngine.prototype.resolveOP13040MainChoice;
+GameEngine.prototype.resolveOP13040MainChoice=function(side,targetUids=[],use=true){
+  const pending=this.state.pending;
+  const foeSide=side==='player'?'ai':'player';
+  const targetIds=pending?.kind==='op13040MainChoice'&&pending.side===side
+    ?[...new Set(Array.isArray(targetUids)?targetUids:[targetUids])].filter(uid=>pending.options.includes(uid)).slice(0,2)
+    :[];
+  const result=previousOP13040ResolveChoiceReliable349.call(this,side,targetUids,use);
+  if(result&&use){
+    const foe=this.state.sides[foeSide];
+    for(const uid of targetIds){
+      const target=foe.field.find(card=>card.uid===uid);
+      if(target){markOP13040RefreshLock349(target);this.log(target.name+'：次のリフレッシュでアクティブになりません')}
+    }
+  }
+  return result;
+};
+const previousOP13040BeginTurnReliable349=GameEngine.prototype.beginTurn;
+GameEngine.prototype.beginTurn=async function(side){
+  const locked=(this.state?.sides?.[side]?.field||[]).filter(card=>card.op13040RefreshLock).map(card=>card.uid);
+  const result=await previousOP13040BeginTurnReliable349.call(this,side);
+  const own=this.state?.sides?.[side];
+  for(const uid of locked){
+    const card=own?.field?.find(item=>item.uid===uid);
+    if(!card)continue;
+    card.rested=true;
+    delete card.op13040RefreshLock;
+    this.log(card.name+'：OP13-040の効果でアクティブになりません');
+  }
+  return result;
+};
