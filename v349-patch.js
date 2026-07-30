@@ -1963,7 +1963,7 @@ function syncOP13001Leader349(state){
 GameEngine.prototype.resolveOP13001DefenseBoost=function(side,targetUids=[]){
   syncOP13001Leader349(this.state);
   const battle=this.state.pending,own=this.state.sides[side],leader=own.leader;
-  if(battle?.kind!=='battle'||battle.defendingSide!==side||leader?.id!=='OP13-001'||(leader.attachedDon||0)<1||own.don.active>5)return false;
+  if(battle?.kind!=='battle'||battle.defendingSide!==side||leader?.id!=='OP13-001'||(leader.effectsNegatedThroughTurn??leader.effectsNegatedTurn??-1)>=this.state.turn||(leader.attachedDon||0)<1||own.don.active>5)return false;
   battle.op13001Prompted=true;
   const eligible=[leader,...own.field.filter(card=>(card.traits||[]).includes('麦わらの一味'))];
   const requested=Array.isArray(targetUids)?targetUids:[targetUids];
@@ -2010,7 +2010,7 @@ UI.prototype.defense=function(g,...args){
   syncOP13001Leader349(g);
   const battle=g.pending,own=g.sides.player,leader=own.leader;
   const canPrompt=battle?.kind==='battle'&&battle.defendingSide==='player'&&!battle.op13001Prompted
-    &&leader?.id==='OP13-001'&&(leader.attachedDon||0)>=1&&own.don.active<=5&&own.don.active>0;
+    &&leader?.id==='OP13-001'&&(leader.effectsNegatedThroughTurn??leader.effectsNegatedTurn??-1)<g.turn&&(leader.attachedDon||0)>=1&&own.don.active<=5&&own.don.active>0;
   if(!canPrompt)return previousOP13001Defense349.call(this,g,...args);
   this.close();
   const engineRef=window.__luffyEngine349,eligible=[leader,...own.field.filter(card=>(card.traits||[]).includes('麦わらの一味'))],chosen=[];
@@ -2263,7 +2263,7 @@ GameEngine.prototype.autoResolveDefense=function(...args){
   const battle=this.state.pending;
   if(battle?.kind==='battle'&&battle.defendingSide==='ai'&&!battle.op13001Prompted){
     const own=this.state.sides.ai,leader=own.leader;
-    if(leader?.id==='OP13-001'&&(leader.attachedDon||0)>=1&&own.don.active>0&&own.don.active<=5){
+    if(leader?.id==='OP13-001'&&(leader.effectsNegatedThroughTurn??leader.effectsNegatedTurn??-1)<this.state.turn&&(leader.attachedDon||0)>=1&&own.don.active>0&&own.don.active<=5){
       const target=battle.targetKind==='leader'?leader:own.field.find(card=>card.uid===battle.targetUid);
       const eligible=target&&(target.uid===leader.uid||(target.traits||[]).includes('麦わらの一味'));
       if(eligible){
