@@ -124,6 +124,39 @@ const chooseBestPlay=async(engine,attempted)=>{
   }
   return evaluated.sort((a,b)=>b.score-a.score||playScore(g,b.card)-playScore(g,a.card)||String(a.card.id).localeCompare(String(b.card.id))||String(a.card.uid).localeCompare(String(b.card.uid)))[0]?.card||null;
 };
+const chooseBestAttack=async(engine,attempted)=>{
+  const g=engine.state,own=g.sides.ai,foe=g.sides.player;
+  const targets=attackTargets(g,'ai').filter(target=>target.kind==='leader'||foe.field.find(card=>card.uid===target.uid)?.rested);
+  const attackers=[own.leader,...own.field].filter(card=>(card.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(card.uid)&&card.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',card));
+  const choices=[];
+  for(const attacker of attackers){
+    for(const target of targets){
+      if(battlePower(attacker)<targetPower(g,target))continue;
+      const shadow=cloneForLookahead(engine);
+      let declared=false;
+      try{declared=Boolean(await shadow.declareAttack('ai',attacker.uid,target.uid))}catch{}
+      const battle=shadow.state.pending;
+      if(!declared||battle?.kind!=='battle')continue;
+      const defender=shadow.state.sides.player;
+      const required=Math.max(0,Number(battle.power||0)-Number(battle.targetPower||0)+1000);
+      const counterCapacity=counterOptions(shadow.state,'player').reduce((sum,card)=>sum+Number(card.counter||0),0);
+      const force=Math.min(required,counterCapacity)/1000;
+      let score=positionScore(shadow.state)*.08+force*4;
+      if(target.kind==='leader'){
+        const doubleAttack=(attacker.keywords||[]).includes('doubleAttack')||(attacker.keywords||[]).includes('double attack');
+        const likelyDamage=required>counterCapacity;
+        score+=28+(4-foe.life.length)*12+(likelyDamage?52:0)+(doubleAttack?35:0);
+        if(foe.life.length<=1&&likelyDamage)score+=1000;
+      }else{
+        const card=foe.field.find(item=>item.uid===target.uid);
+        const value=Number(card?.cost||0)*5+Number(card?.power||0)/1000*3+((card?.keywords||[]).includes('blocker')?18:0);
+        score+=value+(required>counterCapacity?30:0)-8;
+      }
+      choices.push({attacker,target,score});
+    }
+  }
+  return choices.sort((a,b)=>b.score-a.score||battlePower(b.attacker)-battlePower(a.attacker)||String(a.attacker.id).localeCompare(String(b.attacker.id))||String(a.target.uid).localeCompare(String(b.target.uid)))[0]||null;
+};
 export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;const p=await chooseBestPlay(engine,attempted);if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
 if(!attempted.has('__luffy_support__')){
   attempted.add('__luffy_support__');
@@ -153,5 +186,23 @@ if(!attempted.has('__luffy_support__')){
     }
   }
 }
-const targets=attackTargets(g,'ai').filter(target=>target.kind==='leader'||g.sides.player.field.find(card=>card.uid===target.uid)?.rested),attackers=[g.sides.ai.leader,...g.sides.ai.field].filter(c=>(c.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(c.uid)&&c.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',c)&&targets.some(t=>battlePower(c)>=targetPower(g,t))).sort((a,b)=>battlePower(b)-battlePower(a)||String(a.id).localeCompare(String(b.id))||String(a.uid).localeCompare(String(b.uid))),a=attackers[0];if(a){const target=chooseAiAttackTarget(g,a,targets);if(target){const targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(650);continue}}await show('行動を終えてターンを終了します');const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
-export function chooseDefense(g,s,a){const needed=Math.max(0,a.power-a.targetPower+1000),block=blockers(g,s)[0];if(block&&a.targetKind==='leader'&&g.sides[s].life.length<=2)return{blockerUid:block.uid,counters:[]};const opts=counterOptions(g,s).sort((x,y)=>y.counter-x.counter),used=[];let total=0;for(const c of opts){if(total>=needed||g.sides[s].hand.length-used.length<=2)break;used.push(c.uid);total+=c.counter}return{counters:total>=needed?used:[]}}
+const attackChoice=await chooseBestAttack(engine,attempted);if(attackChoice){const a=attackChoice.attacker,target=attackChoice.target,targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(650);continue}await show('行動を終えてターンを終了します');const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
+export function chooseDefense(g,s,a){
+  const own=g.sides[s],needed=Math.max(0,Number(a.power||0)-Number(a.targetPower||0)+1000);
+  if(needed<=0)return{counters:[]};
+  const attackingSide=s==='player'?'ai':'player',attacker=[g.sides[attackingSide].leader,...g.sides[attackingSide].field].find(card=>card.uid===a.attackerUid);
+  const doubleAttack=(attacker?.keywords||[]).includes('doubleAttack')||(attacker?.keywords||[]).includes('double attack');
+  const availableBlockers=blockers(g,s).sort((x,y)=>(Number(x.power||0)-Number(y.power||0))||(Number(x.cost||0)-Number(y.cost||0))||String(x.id).localeCompare(String(y.id)));
+  if(availableBlockers.length&&a.targetKind==='leader'&&(own.life.length<=2||doubleAttack||needed>=4000))return{blockerUid:availableBlockers[0].uid,counters:[]};
+  const options=counterOptions(g,s).slice(0,14),floor=own.life.length<=1?0:2,maxUse=Math.max(0,own.hand.length-floor);
+  let best=null;
+  const limit=1<<options.length;
+  for(let mask=1;mask<limit;mask++){
+    let total=0,count=0,ids=[];
+    for(let i=0;i<options.length;i++)if(mask&(1<<i)){total+=Number(options[i].counter||0);count++;ids.push(options[i].uid)}
+    if(count>maxUse||total<needed)continue;
+    const candidate={ids,total,count};
+    if(!best||candidate.total-needed<best.total-needed||(candidate.total===best.total&&candidate.count<best.count)|| (candidate.total===best.total&&candidate.count===best.count&&candidate.ids.join().localeCompare(best.ids.join())<0))best=candidate;
+  }
+  return{counters:best?.ids||[]};
+}
