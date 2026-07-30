@@ -40,6 +40,14 @@
   <link rel="stylesheet" href="./v343.css?v=3441">
   <link rel="stylesheet" href="./v346.css?v=3460">
   <link rel="stylesheet" href="./v350.css?v=3504">
+  <style>
+    .hero h1{
+      font-size:clamp(1.15rem,5.5vw,1.45rem);
+      line-height:1.2;
+      letter-spacing:-0.035em;
+      white-space:nowrap;
+    }
+  </style>
 </head>
 <body>
   <main id="app" aria-live="polite"></main>
@@ -66,11 +74,14 @@
   <script type="module" src="./v346-patch.js?v=3460"></script>
   <script type="module" src="./v347-patch.js?v=3470"></script>
   <script type="module" src="./v348-patch.js?v=3481"></script>
-  <script type="module" src="./v349-patch.js?v=3558"></script>\n  <script type="module" src="./v360-patch.js?v=3601"></script>\n  <script type="module" src="./v362-patch.js?v=3621"></script>\n  <script type="module" src="./v363-patch.js?v=3631"></script>\n\n\n\n
+  <script type="module" src="./v349-patch.js?v=3558"></script>
+  <script type="module" src="./v360-patch.js?v=3601"></script>
+  <script type="module" src="./v362-patch.js?v=3621"></script>
+  <script type="module" src="./v363-patch.js?v=3631"></script>
   <script>
     document.addEventListener('DOMContentLoaded',()=>{
       for(const node of [...document.body.childNodes]){
-        if(node.nodeType===Node.TEXT_NODE&&node.textContent.trim()==='\\n')node.remove();
+        if(node.nodeType===Node.TEXT_NODE&&/^(\\\\n)+$/.test(node.textContent.replace(/\\s/g,'')))node.remove();
       }
     });
   </script>
