@@ -17,6 +17,16 @@ const usefulMainEvent=(g,card)=>{
   return card.type!=='event';
 };
 const engineCost=(g,side,card)=>Number(card?.cost||0)+(g.activeSide!==(side)&&g.sides[side]?.leader?.id==='OP16-080'&&card?.type==='character'?1:0);
+const chooseAiAttackTarget=(g,attacker,targets)=>{
+  const foe=g.sides.player,power=battlePower(attacker),leader=targets.find(target=>target.kind==='leader');
+  if(foe.life.length<=2&&leader&&power>=targetPower(g,leader))return leader;
+  const characters=targets.filter(target=>target.kind==='character'&&power>=targetPower(g,target)).map(target=>({target,card:foe.field.find(card=>card.uid===target.uid)}))
+    .sort((a,b)=>(((b.card?.keywords||[]).includes('blocker')?1:0)-((a.card?.keywords||[]).includes('blocker')?1:0))||((b.card?.cost||0)-(a.card?.cost||0))||((b.card?.power||0)-(a.card?.power||0)));
+  const valuable=characters.find(item=>(item.card?.keywords||[]).includes('blocker')||(item.card?.cost||0)>=4);
+  if(valuable)return valuable.target;
+  if(leader&&power>=targetPower(g,leader))return leader;
+  return characters[0]?.target||null;
+};
 const desiredLuffyDefenseDon=g=>{
   const own=g.sides.ai;
   if(own.leader?.id!=='OP13-001')return 0;
@@ -73,5 +83,5 @@ if(!attempted.has('__luffy_support__')){
     }
   }
 }
-const targets=attackTargets(g,'ai'),attackers=[g.sides.ai.leader,...g.sides.ai.field].filter(c=>(c.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(c.uid)&&c.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',c)&&targets.some(t=>battlePower(c)>=targetPower(g,t))).sort((a,b)=>battlePower(b)-battlePower(a)),a=attackers[0];if(a){const target=targets.find(t=>t.kind==='leader'&&battlePower(a)>=targetPower(g,t))||targets.find(t=>battlePower(a)>=targetPower(g,t));if(target){const targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(650);continue}}await show('行動を終えてターンを終了します');const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
+const targets=attackTargets(g,'ai'),attackers=[g.sides.ai.leader,...g.sides.ai.field].filter(c=>(c.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(c.uid)&&c.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',c)&&targets.some(t=>battlePower(c)>=targetPower(g,t))).sort((a,b)=>battlePower(b)-battlePower(a)),a=attackers[0];if(a){const target=chooseAiAttackTarget(g,a,targets);if(target){const targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(650);continue}}await show('行動を終えてターンを終了します');const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
 export function chooseDefense(g,s,a){const needed=Math.max(0,a.power-a.targetPower+1000),block=blockers(g,s)[0];if(block&&a.targetKind==='leader'&&g.sides[s].life.length<=2)return{blockerUid:block.uid,counters:[]};const opts=counterOptions(g,s).sort((x,y)=>y.counter-x.counter),used=[];let total=0;for(const c of opts){if(total>=needed||g.sides[s].hand.length-used.length<=2)break;used.push(c.uid);total+=c.counter}return{counters:total>=needed?used:[]}}
