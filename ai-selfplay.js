@@ -35,11 +35,27 @@ const drainPending=async engine=>{
       const own=engine.state.sides[side],chosen=(p.cards||[]).filter(card=>(p.options||[]).includes(card.uid)).sort((a,b)=>Number(b.counter||0)-Number(a.counter||0)||Number(b.cost||0)-Number(a.cost||0))[0];
       engine.resolveLuffyNamiSearch(side,chosen?.uid||null);continue;
     }
-    if(p.kind==='devonTriggerChoice'&&engine.resolveDevonChoice){await engine.resolveDevonChoice(side,(p.options||[])[0]||null);continue}
-    if(p.kind==='sanjuanPowerChoice'&&engine.resolveSanjuanChoice){engine.resolveSanjuanChoice(side,(p.options||[])[0]||null);continue}
+    const first=()=>((p.options||p.cards||[])[0]?.uid||(p.options||[])[0]||null);
+    if(['devonTriggerChoice','devonAttackChoice'].includes(p.kind)&&engine.resolveDevonChoice){await engine.resolveDevonChoice(side,first());continue}
+    if(p.kind==='sanjuanPowerChoice'&&engine.resolveSanjuanChoice){engine.resolveSanjuanChoice(side,first());continue}
     if(p.kind==='borsalinoLifeChoice'&&engine.resolveBorsalinoChoice){engine.resolveBorsalinoChoice(side,true);continue}
-    if(p.kind==='shiryuDiscardChoice'&&engine.resolveShiryuChoice){engine.resolveShiryuChoice(side,null);continue}
-    engine.state.pending=null;engine.state.phase='main';
+    if(['shiryuDiscardChoice','shiryuLifeChoice'].includes(p.kind)&&engine.resolveShiryuChoice){engine.resolveShiryuChoice(side,p.kind==='shiryuLifeChoice'?first():null);continue}
+    if(['darkWaterMainChoice','darkWaterNegateChoice'].includes(p.kind)&&engine.resolveDarkWaterChoice){engine.resolveDarkWaterChoice(side,first());continue}
+    if(p.kind==='zehahaChoice'&&engine.resolveZehahaChoice){await engine.resolveZehahaChoice(side,first(),true);continue}
+    if(p.kind==='fullFieldTrashChoice'&&engine.resolveFullFieldTrashChoice){await engine.resolveFullFieldTrashChoice(side,first());continue}
+    if(p.kind==='luffySanjiChoice'&&engine.resolveLuffySanjiChoice){engine.resolveLuffySanjiChoice(side,first());continue}
+    if(p.kind==='op05038DiscardChoice'&&engine.resolveOP05038DiscardChoice){engine.resolveOP05038DiscardChoice(side,first());continue}
+    if(p.kind==='op05038TriggerChoice'&&engine.resolveOP05038TriggerChoice){engine.resolveOP05038TriggerChoice(side,first());continue}
+    if(p.kind==='op08036TriggerChoice'&&engine.resolveOP08036TriggerChoice){engine.resolveOP08036TriggerChoice(side,first());continue}
+    if(p.kind==='op12037MainChoice'&&engine.resolveOP12037MainChoice){engine.resolveOP12037MainChoice(side,[],0,false);continue}
+    if(p.kind==='op13040MainChoice'&&engine.resolveOP13040MainChoice){engine.resolveOP13040MainChoice(side,[],false);continue}
+    if(p.kind==='op14031RestChoice'&&engine.resolveOP14031RestChoice){engine.resolveOP14031RestChoice(side,(p.options||[]).slice(0,p.max||2));continue}
+    if(p.kind==='op15032RestChoice'&&engine.resolveOP15032RestChoice){engine.resolveOP15032RestChoice(side,first());continue}
+    if(p.kind==='op15032ActiveChoice'&&engine.resolveOP15032ActiveChoice){engine.resolveOP15032ActiveChoice(side,first());continue}
+    if(p.kind==='st31004PowerChoice'&&engine.resolveST31004Choice){engine.resolveST31004Choice(side,(p.options||[]).slice(0,p.max||3));continue}
+    if(p.kind==='st31005DonChoice'&&engine.resolveST31005DonChoice){engine.resolveST31005DonChoice(side,first());continue}
+    if(p.kind==='endTurnDonCountChoice'&&engine.resolveEndTurnDonCountChoice349){await engine.resolveEndTurnDonCountChoice349(side,p.max||p.remaining||0);continue}
+    throw new Error('未対応の選択処理: '+p.kind);
   }
 };
 const runSide=async(engine,side)=>{
