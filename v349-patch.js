@@ -1772,12 +1772,12 @@ UI.prototype.renderGame=function(g){
       const button=document.createElement('button');
       if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
       const name=document.createElement('strong');name.textContent=card.name;button.append(name);
-      button.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038DiscardChoice('player',card.uid);this.renderGame(engineRef.state)});
+      button.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038DiscardChoice('player',card.uid);this.renderGame(engineRef.state);window.__resumeAi349?.()});
       grid.append(button);
     }
     body.append(help,grid);
     const skip=document.createElement('button');skip.textContent='捨てずに終了';
-    skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038DiscardChoice('player',null);this.renderGame(engineRef.state)});
+    skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038DiscardChoice('player',null);this.renderGame(engineRef.state);window.__resumeAi349?.()});
     foot.append(skip);
   }else{
     head.innerHTML='<small>トリガー効果</small><h2>舞踏石：対象を選択</h2>';
@@ -1787,12 +1787,12 @@ UI.prototype.renderGame=function(g){
       const button=document.createElement('button');
       if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
       const name=document.createElement('strong');name.textContent=card.name;button.append(name);
-      button.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038TriggerChoice('player',card.uid);this.renderGame(engineRef.state)});
+      button.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038TriggerChoice('player',card.uid);this.renderGame(engineRef.state);window.__resumeAi349?.()});
       grid.append(button);
     }
     body.append(help,grid);
     const skip=document.createElement('button');skip.textContent='選ばず終了';
-    skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038TriggerChoice('player',null);this.renderGame(engineRef.state)});
+    skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP05038TriggerChoice('player',null);this.renderGame(engineRef.state);window.__resumeAi349?.()});
     foot.append(skip);
   }
   panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
