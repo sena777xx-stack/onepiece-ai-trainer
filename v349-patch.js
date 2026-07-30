@@ -1401,7 +1401,8 @@ function syncOP13040Runtime349(state){
     card.type='event';card.color=['green'];card.cost=1;card.power=0;card.counter=3000;
     card.traits=['超新星','麦わらの一味'];
     card.text='【メイン】自分のDON!!2枚をレストにできる：相手のレストのコスト7以下のキャラ2枚までは、次の相手のリフレッシュフェーズでアクティブにならない。【カウンター】自分のリーダーを、このバトル中、パワー+3000。【トリガー】このカードの【カウンター】効果を発動する。';
-    card.effects=[{timing:'trigger',action:'op13040CounterTrigger'}];\n    card.keywords=['main','counter','trigger'];
+    card.effects=[{timing:'trigger',action:'op13040CounterTrigger'}];
+    card.keywords=['main','counter','trigger'];
   }
 }
 const previousOP13040Play349=GameEngine.prototype.playCard;
