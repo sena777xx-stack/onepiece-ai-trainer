@@ -1315,7 +1315,7 @@ UI.prototype.renderGame=function(g){
 
 
 /* OP15-032 Brook image repair */
-const OP15032_IMAGE_349="https://xbdxqvbwmdrrewv2.public.blob.vercel-storage.com/cards/onepiece/9b13aa40-818e-4d22-8352-956caedc3352/full.webp";
+const OP15032_IMAGE_349="https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP15/OP15-032_JP.webp";
 function syncOP15032Image349(state){
   if(!state||!state.sides)return;
   const cards=[];
