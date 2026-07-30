@@ -153,6 +153,30 @@ const matchupPlayBonus=(g,card)=>{
   }
   return bonus;
 };
+const combatOutlook=(g,attempted=new Set())=>{
+  const own=g.sides.ai,foe=g.sides.player;
+  const attackers=[own.leader,...own.field].filter(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
+  const leaderPower=Number(foe.leader?.power||0)+Number(foe.leader?.tempPower||0);
+  let spareDon=Math.max(0,Number(own.don?.active||0)),damage=0,pressure=0;
+  const powers=attackers.map(card=>({card,power:battlePower(card)})).sort((a,b)=>b.power-a.power);
+  for(const item of powers){
+    const deficit=Math.max(0,leaderPower-item.power);
+    const use=Math.min(spareDon,Math.ceil(deficit/1000));
+    spareDon-=use;
+    const attackPower=item.power+use*1000;
+    if(attackPower>=leaderPower){
+      const doubleAttack=(item.card.keywords||[]).includes('doubleAttack')||(item.card.keywords||[]).includes('double attack');
+      damage+=doubleAttack?2:1;
+      pressure+=1+Math.max(0,attackPower-leaderPower)/1000*.35;
+    }
+  }
+  const activeBlockers=foe.field.filter(card=>!card.rested&&(card.keywords||[]).includes('blocker')).length;
+  const expectedCounter=Math.min(5000,Math.max(0,foe.hand.length-1)*850);
+  const counterTax=Math.ceil(expectedCounter/2000);
+  const effectiveDamage=Math.max(0,damage-activeBlockers-counterTax);
+  const needed=Math.max(1,foe.life.length+1);
+  return{score:pressure*10+effectiveDamage*18-activeBlockers*8,lethal:effectiveDamage>=needed,damage,effectiveDamage,needed,activeBlockers};
+};
 const preCombatPlayUseful=(g,card)=>{
   const foe=g.sides.player;
   if(card.id==='ST31-005'&&!g.sides.ai.stage)return true;
@@ -162,14 +186,19 @@ const preCombatPlayUseful=(g,card)=>{
   return false;
 };
 const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
-  const g=engine.state,candidates=g.sides.ai.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card)&&(!preCombatOnly||preCombatPlayUseful(g,card)));
-  const evaluated=[];
+  const g=engine.state,candidates=g.sides.ai.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card));
+  const beforeCombat=combatOutlook(g,attempted),evaluated=[];
   for(const card of candidates){
     const shadow=cloneForLookahead(engine);
     let success=false;
     try{success=Boolean(await shadow.playCard('ai',card.uid))}catch{}
     if(!success){evaluated.push({card,score:-1e9});continue}
-    let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card);
+    const afterCombat=combatOutlook(shadow.state,attempted);
+    const tactical=preCombatPlayUseful(g,card)||(!beforeCombat.lethal&&afterCombat.lethal)||afterCombat.score>=beforeCombat.score+10;
+    if(preCombatOnly&&!tactical)continue;
+    let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card)+(afterCombat.score-beforeCombat.score)*2;
+    if(!beforeCombat.lethal&&afterCombat.lethal)score+=1500;
+    if(beforeCombat.lethal&&!afterCombat.lethal)score-=1800;
     if(shadow.state.pending?.side==='ai')score-=18;
     if(shadow.state.winner==='ai')score+=10000;
     if(shadow.state.winner==='player')score-=10000;
@@ -181,7 +210,7 @@ const chooseBestAttack=async(engine,attempted)=>{
   const g=engine.state,own=g.sides.ai,foe=g.sides.player;
   const targets=attackTargets(g,'ai').filter(target=>target.kind==='leader'||foe.field.find(card=>card.uid===target.uid)?.rested);
   const attackers=[own.leader,...own.field].filter(card=>(card.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(card.uid)&&card.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',card));
-  const choices=[];
+  const outlook=combatOutlook(g,attempted),choices=[];
   for(const attacker of attackers){
     for(const target of targets){
       if(battlePower(attacker)<targetPower(g,target))continue;
@@ -199,11 +228,13 @@ const chooseBestAttack=async(engine,attempted)=>{
         const doubleAttack=(attacker.keywords||[]).includes('doubleAttack')||(attacker.keywords||[]).includes('double attack');
         const likelyDamage=required>counterCapacity;
         score+=28+(4-foe.life.length)*12+(likelyDamage?52:0)+(doubleAttack?35:0);
+        if(outlook.lethal)score+=700;
         if(foe.life.length<=1&&likelyDamage)score+=1000;
       }else{
         const card=foe.field.find(item=>item.uid===target.uid);
         const value=Number(card?.cost||0)*5+Number(card?.power||0)/1000*3+((card?.keywords||[]).includes('blocker')?18:0);
         score+=value+(required>counterCapacity?30:0)-8;
+        if(outlook.lethal)score+=((card?.keywords||[]).includes('blocker')?80:-500);
       }
       choices.push({attacker,target,score});
     }
