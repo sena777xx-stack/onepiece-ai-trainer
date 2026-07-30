@@ -491,3 +491,107 @@ GameEngine.prototype.endTurn=async function(side){
   }
   return previousUsoppEndTurn349.call(this,side);
 };
+
+
+/* OP14-031 Nami: Blocker; on play rest up to 2 opposing cost-8-or-less Characters,
+   then activate up to 5 DON!! at the end of this turn. */
+const previousOP14031Play349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousOP14031Play349.call(this,side,uid);
+  if(!result||source?.id!=='OP14-031')return result;
+  this.state.op14031EndTurn=this.state.op14031EndTurn||{player:0,ai:0};
+  this.state.op14031EndTurn[side]=(this.state.op14031EndTurn[side]||0)+1;
+  const foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  const options=foe.field.filter(card=>(card.cost||0)<=8&&!card.rested).map(card=>card.uid);
+  if(!options.length){
+    this.log(source.name+'の登場時：レストにできる相手キャラはいません');
+    return result;
+  }
+  if(side==='ai'){
+    const targets=foe.field.filter(card=>options.includes(card.uid))
+      .sort((a,b)=>((b.cost||0)-(a.cost||0))||((b.power||0)-(a.power||0))).slice(0,2);
+    for(const card of targets)card.rested=true;
+    this.log(source.name+'の登場時：'+targets.map(card=>card.name).join('、')+'をレストにした');
+    return result;
+  }
+  this.state.pending={kind:'op14031RestChoice',side,sourceName:source.name,options,max:2};
+  this.state.phase='effectChoice';
+  this.log(source.name+'の登場時：相手のコスト8以下のキャラを2枚まで選択');
+  return result;
+};
+
+GameEngine.prototype.resolveOP14031RestChoice=function(side,ids=[]){
+  const pending=this.state.pending;
+  if(pending?.kind!=='op14031RestChoice'||pending.side!==side)return false;
+  const foe=this.state.sides[side==='player'?'ai':'player'];
+  const chosen=[...new Set(Array.isArray(ids)?ids:[ids])].filter(uid=>pending.options.includes(uid)).slice(0,2);
+  const names=[];
+  for(const uid of chosen){
+    const card=foe.field.find(item=>item.uid===uid);
+    if(card&&!card.rested){card.rested=true;names.push(card.name)}
+  }
+  this.log(names.length?pending.sourceName+'の登場時：'+names.join('、')+'をレストにした':pending.sourceName+'の効果で対象を選びませんでした');
+  this.state.pending=null;
+  this.state.phase='main';
+  return true;
+};
+
+const previousOP14031EndTurn349=GameEngine.prototype.endTurn;
+GameEngine.prototype.endTurn=async function(side){
+  const canEnd=this.state.activeSide===side&&this.state.phase==='main'&&!this.state.pending;
+  if(canEnd){
+    const count=this.state.op14031EndTurn?.[side]||0;
+    if(count){
+      const own=this.state.sides[side],amount=Math.min(count*5,own.don.rested);
+      own.don.rested-=amount;
+      own.don.active+=amount;
+      this.state.op14031EndTurn[side]=0;
+      this.log('ナミのターン終了時：DON!!を'+amount+'枚アクティブにした');
+    }
+  }
+  return previousOP14031EndTurn349.call(this,side);
+};
+
+const previousOP14031Render349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  previousOP14031Render349.call(this,g);
+  if(g.pending?.kind!=='op14031RestChoice'||g.pending.side!=='player')return;
+  this.close();
+  const pending=g.pending,engineRef=window.__luffyEngine349,foe=g.sides.ai,chosen=[];
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>登場時効果</small><h2>OP14-031 ナミ：対象を選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');help.textContent='相手のコスト8以下のアクティブのキャラを2枚まで選び、レストにします。';
+  const status=document.createElement('p');status.textContent='選択 0 / 2枚';
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  const refresh=()=>{
+    status.textContent='選択 '+chosen.length+' / 2枚';
+    for(const button of grid.querySelectorAll('button')){
+      const selected=chosen.includes(button.dataset.id);
+      button.classList.toggle('selected',selected);
+      button.setAttribute('aria-pressed',String(selected));
+    }
+  };
+  for(const uid of pending.options){
+    const card=foe.field.find(item=>item.uid===uid);if(!card)continue;
+    const button=document.createElement('button');button.dataset.id=card.uid;
+    if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
+    const name=document.createElement('strong');name.textContent=card.name;button.append(name);
+    const note=document.createElement('small');note.textContent='コスト '+card.cost+' / パワー '+(card.power+(card.tempPower||0));button.append(note);
+    button.addEventListener('click',()=>{
+      const index=chosen.indexOf(card.uid);
+      if(index>=0)chosen.splice(index,1);else if(chosen.length<2)chosen.push(card.uid);
+      refresh();
+    });
+    grid.append(button);
+  }
+  body.append(help,status,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer';
+  const reset=document.createElement('button');reset.textContent='選択を戻す';reset.addEventListener('click',()=>{chosen.length=0;refresh()});
+  const confirm=document.createElement('button');confirm.className='primary';confirm.textContent='効果を決定';confirm.addEventListener('click',()=>{this.close();engineRef?.resolveOP14031RestChoice('player',chosen);this.renderGame(engineRef.state)});
+  const skip=document.createElement('button');skip.textContent='選ばず終了';skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP14031RestChoice('player',[]);this.renderGame(engineRef.state)});
+  foot.append(reset,confirm,skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);refresh();
+};
