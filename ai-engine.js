@@ -1,4 +1,4 @@
-import{legalPlay,legalAttack,attackTargets,counterOptions,blockers}from'./rule-engine-v3.js?v=3441';import{recordAiTurn,getAiPolicyBias}from'./ai-telemetry.js?v=3510';const wait=ms=>new Promise(r=>setTimeout(r,ms));
+import{legalPlay,legalAttack,attackTargets,counterOptions,blockers}from'./rule-engine-v3.js?v=3441';import{recordAiTurn,getAiPolicyBias,getCardLearningBonus}from'./ai-telemetry.js?v=3511';const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const battlePower=card=>(card.power||0)+(card.attachedDon||0)*1000+(card.tempPower||0);
 const targetPower=(g,target)=>{const foe=g.sides.player,card=target.kind==='leader'?foe.leader:foe.field.find(c=>c.uid===target.uid);return(card?.power||0)+(card?.tempPower||0)};
 const luffyRestoreIds=new Set(['OP13-037','OP14-022','OP14-031','OP13-027','OP13-118']);
@@ -251,7 +251,7 @@ const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
     const afterCombat=combatOutlook(shadow.state,attempted);
     const tactical=preCombatPlayUseful(g,card)||(!beforeCombat.lethal&&afterCombat.lethal)||afterCombat.score>=beforeCombat.score+10;
     if(preCombatOnly&&!tactical)continue;
-    let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card)+(afterCombat.score-beforeCombat.score)*2;
+    let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card)+getCardLearningBonus(g,card)+(afterCombat.score-beforeCombat.score)*2;
     const safetyBefore=opponentTurnRisk(g),safetyAfter=opponentTurnRisk(shadow.state);
     score+=(safetyBefore-safetyAfter)*1.8;
     if(!preCombatOnly&&!shadow.state.pending){
@@ -363,7 +363,7 @@ if(!attempted.has('__hachinosu__')){
 }
 const hasUnattacked=[g.sides.ai.leader,...g.sides.ai.field].some(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
 const p=await chooseBestPlay(engine,attempted,hasUnattacked);
-if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);if(played)await resolveAiPostPlayChoices(engine);onStep();await wait(settle);if(!played)attempted.add(p.uid);
+if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);if(played){g._aiPlayedCards??={player:[],ai:[]};g._aiPlayedCards.ai.push(p.id);await resolveAiPostPlayChoices(engine);}onStep();await wait(settle);if(!played)attempted.add(p.uid);
 if(played&&p.id==='OP09-093'&&typeof engine.useTeach10==='function'){
   const foe=g.sides.player;
   const target=foe.field.slice().sort((a,b)=>Number(b.cost||0)-Number(a.cost||0)||Number(b.power||0)-Number(a.power||0))[0]||null;
