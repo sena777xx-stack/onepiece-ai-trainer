@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js?v=3501';
+import{GameEngine}from'./game-engine-v3.js?v=3441';
 
 /* v364: OP01-016 / EB02-017 / EB04-002 search resolution. */
 const previousSearcherPlay364=GameEngine.prototype.playCard;
@@ -6,6 +6,7 @@ GameEngine.prototype.playCard=async function(side,uid){
   const source=this.state.sides[side].hand.find(card=>card.uid===uid);
   const result=await previousSearcherPlay364.call(this,side,uid);
   if(!result||!['OP01-016','EB02-017','EB04-002'].includes(source?.id))return result;
+  if(this.state.pending?.kind==='luffyNamiSearch'&&this.state.pending.side===side)return result;
 
   const own=this.state.sides[side],isBonney=source.id==='EB04-002',lookCount=isBonney?4:5;
   const cards=own.deck.splice(Math.max(0,own.deck.length-lookCount));
