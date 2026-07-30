@@ -1062,3 +1062,60 @@ GameEngine.prototype.undo=function(){
   this.log('直前のプレイヤー操作まで戻しました');
   return true;
 };
+
+
+/* EB04-007 usability correction: automatically apply Rush: Character when
+   its condition is met, hide the manual button, and omit the Leader target. */
+function syncEB04007AutomaticRush349(engine,side){
+  if(!engine?.state||engine.state.activeSide!==side||engine.state.phase!=='main'||engine.state.pending)return;
+  const own=engine.state.sides[side],foe=engine.state.sides[side==='player'?'ai':'player'];
+  if(!foe.field.some(card=>eb04007Power349(card)>=8000))return;
+  for(const card of own.field){
+    if(card.id!=='EB04-007'||!card.summoningSickness||card.eb04007RushUsedTurn===engine.state.turn)continue;
+    card.eb04007RushUsedTurn=engine.state.turn;
+    card.eb04007RushCharacterThroughTurn=engine.state.turn;
+    card.summoningSickness=false;
+    card.keywords=Array.isArray(card.keywords)?card.keywords:[];
+    if(!card.keywords.includes('rush'))card.keywords.push('rush');
+    engine.log(card.name+'：条件を満たしたため、このターン中「速攻：キャラ」を得た');
+  }
+}
+
+const previousEB04007AutoRender349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  const engineRef=window.__luffyEngine349;
+  if(engineRef?.state===g){
+    syncEB04007AutomaticRush349(engineRef,'player');
+    syncEB04007AutomaticRush349(engineRef,'ai');
+  }
+  return previousEB04007AutoRender349.call(this,g);
+};
+
+const previousEB04007AutoShowCard349=UI.prototype.showCard;
+UI.prototype.showCard=function(side,card,g){
+  const engineRef=window.__luffyEngine349;
+  if(engineRef?.state===g)syncEB04007AutomaticRush349(engineRef,side);
+  previousEB04007AutoShowCard349.call(this,side,card,g);
+  if(card.id!=='EB04-007')return;
+  const actions=this.modal?.querySelector('.actions');
+  if(!actions)return;
+  for(const button of [...actions.querySelectorAll('button')]){
+    if(button.textContent.trim()==='起動メインを使う')button.remove();
+    if(button.textContent.trim()==='攻撃する'&&card.eb04007RushCharacterThroughTurn===g.turn){
+      button.addEventListener('click',()=>{window.__eb04007CharacterRushAttacker=card.uid},{capture:true,once:true});
+    }
+  }
+};
+
+const previousEB04007Targets349=UI.prototype.targets;
+UI.prototype.targets=function(targets){
+  const attackerUid=window.__eb04007CharacterRushAttacker;
+  const engineRef=window.__luffyEngine349;
+  const own=engineRef?.state?.sides?.player;
+  const attacker=own?.field?.find(card=>card.uid===attackerUid);
+  window.__eb04007CharacterRushAttacker=null;
+  if(attacker?.id==='EB04-007'&&attacker.eb04007RushCharacterThroughTurn===engineRef.state.turn){
+    return previousEB04007Targets349.call(this,(targets||[]).filter(target=>target.kind!=='leader'));
+  }
+  return previousEB04007Targets349.call(this,targets);
+};
