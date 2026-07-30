@@ -2621,12 +2621,6 @@ GameEngine.prototype.playCard=async function(side,uid){
     if(chosen){own.hand.push(chosen);this.log(chosen.name+'をサーチで手札に加えた')}
     own.trash.push(...(pending.cards||[]).filter(card=>card.uid!==chosen?.uid));
     this.state.pending=null;this.state.phase='main';
-  }else if(['OP01-016','EB02-017','EB04-002'].includes(source?.id)&&!pending){
-    const look=source.id==='EB04-002'?4:5,cards=own.deck.splice(Math.max(0,own.deck.length-look));
-    const valid=cards.filter(card=>source.id==='EB04-002'?(card.name!=='ジュエリー・ボニー'&&(card.traits||[]).some(trait=>['エッグヘッド','Egghead','麦わらの一味'].includes(trait))):(card.name!=='ナミ'&&(card.traits||[]).includes('麦わらの一味')));
-    const chosen=valid.sort((a,b)=>aiSearchValue351(this.state,b)-aiSearchValue351(this.state,a))[0];
-    if(chosen){own.hand.push(chosen);this.log(chosen.name+'をサーチで手札に加えた')}
-    own.deck.unshift(...cards.filter(card=>card.uid!==chosen?.uid));
   }
   return result;
 };
