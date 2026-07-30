@@ -1312,3 +1312,44 @@ UI.prototype.renderGame=function(g){
   syncOP12037Runtime349(g);
   return previousOP12037MigrationRender349.call(this,g);
 };
+
+
+/* OP15-032 Brook image repair */
+const OP15032_IMAGE_349="https://xbdxqvbwmdrrewv2.public.blob.vercel-storage.com/cards/onepiece/9b13aa40-818e-4d22-8352-956caedc3352/full.webp";
+function syncOP15032Image349(state){
+  if(!state||!state.sides)return;
+  const cards=[];
+  for(const sideName of ["player","ai"]){
+    const side=state.sides[sideName];
+    if(!side)continue;
+    if(side.leader)cards.push(side.leader);
+    if(side.stage)cards.push(side.stage);
+    for(const zone of ["deck","hand","life","field","trash"]){
+      if(Array.isArray(side[zone]))cards.push(...side[zone]);
+    }
+  }
+  if(state.pending){
+    if(state.pending.card)cards.push(state.pending.card);
+    if(Array.isArray(state.pending.cards))cards.push(...state.pending.cards);
+  }
+  for(const card of cards){
+    if(card&&card.id==="OP15-032")card.imageUrl=OP15032_IMAGE_349;
+  }
+}
+const previousOP15032ImageStart349=GameEngine.prototype.start;
+GameEngine.prototype.start=function(...args){
+  const result=previousOP15032ImageStart349.apply(this,args);
+  syncOP15032Image349(this.state);
+  return result;
+};
+const previousOP15032ImageLoad349=GameEngine.prototype.load;
+GameEngine.prototype.load=function(saved){
+  const result=previousOP15032ImageLoad349.call(this,saved);
+  syncOP15032Image349(this.state);
+  return result;
+};
+const previousOP15032ImageRender349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  syncOP15032Image349(g);
+  return previousOP15032ImageRender349.call(this,g);
+};
