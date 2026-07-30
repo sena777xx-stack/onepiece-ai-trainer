@@ -2277,3 +2277,46 @@ GameEngine.prototype.autoResolveDefense=function(...args){
   }
   return previousAiLuffyDefense349.apply(this,args);
 };
+
+
+// Strategic AI mulligan, kept here as a compatibility layer for cached engine modules.
+const shuffleAiOpening349=list=>{const result=[...list];for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]]}return result};
+const shouldAiKeepOpening349=engine=>{
+  const side=engine.state.sides.ai,hand=side.hand;
+  if(side.leader.id==='OP13-001'){
+    const starters=new Set(['ST31-005','OP01-016','EB02-017','EB04-002']);
+    const early=hand.filter(card=>starters.has(card.id)||(card.type==='character'&&(card.cost||0)<=2)).length;
+    const curve=hand.filter(card=>card.type==='character'&&(card.cost||0)>=4&&(card.cost||0)<=5).length;
+    const bricks=hand.filter(card=>card.type==='event'||(card.cost||0)>=6).length;
+    const score=hand.reduce((total,card)=>total+(starters.has(card.id)?4:(card.type==='character'&&(card.cost||0)<=2)?2:(card.type==='character'&&(card.cost||0)<=5)?2:(card.counter||0)>=2000?1:-1),0);
+    return early>=1&&curve>=1&&bricks<=2&&score>=5;
+  }
+  const early=hand.filter(card=>(card.cost||0)<=2&&card.type!=='event').length;
+  const middle=hand.filter(card=>(card.cost||0)>=3&&(card.cost||0)<=5&&card.type==='character').length;
+  return early>=1&&middle>=1;
+};
+const previousStrategicMulliganStart349=GameEngine.prototype.start;
+GameEngine.prototype.start=function(first='player'){
+  const result=previousStrategicMulliganStart349.call(this,first);
+  if(this.state.phase==='mulligan'){
+    this.state.sides.ai.mulliganDone=false;
+    this.state.log=this.state.log.filter(entry=>entry.text!=='先攻AIが初手をキープ');
+  }
+  return result;
+};
+GameEngine.prototype.mulligan=function(side,keep){
+  if(this.state.phase!=='mulligan'||this.state.sides[side].mulliganDone)return false;
+  this.snapshot();
+  const current=this.state.sides[side];
+  if(!keep){current.deck=shuffleAiOpening349([...current.deck,...current.hand]);current.hand=[];this.draw(side,5,false,false);this.log((side==='player'?'あなた':'AI')+'がマリガン')}
+  else this.log((side==='player'?'あなた':'AI')+'がキープ');
+  current.mulliganDone=true;
+  if(side==='player'&&!this.state.sides.ai.mulliganDone){
+    const ai=this.state.sides.ai,aiKeep=shouldAiKeepOpening349(this);
+    if(!aiKeep){ai.deck=shuffleAiOpening349([...ai.deck,...ai.hand]);ai.hand=[];this.draw('ai',5,false,false)}
+    ai.mulliganDone=true;
+    this.log(aiKeep?'AIが初手をキープ':'AIが初手をマリガン');
+  }
+  if(Object.values(this.state.sides).every(value=>value.mulliganDone))this.placeLifeAndBegin();
+  return true;
+};
