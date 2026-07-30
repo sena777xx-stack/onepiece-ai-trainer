@@ -1629,7 +1629,7 @@ UI.prototype.defense=function(g){
 const previousPaidCounterFilteredDefense349=UI.prototype.defense;
 UI.prototype.defense=function(g,...args){
   const battle=g.pending,own=g.sides.player;
-  const mustHide=battle?.kind==='battle'&&battle.step==='counter'&&battle.defendingSide==='player'
+  const mustHide=battle?.kind==='battle'&&battle.defendingSide==='player'
     &&(battle.targetKind!=='leader'||own.don.active<1);
   const hidden=[];
   if(mustHide){
