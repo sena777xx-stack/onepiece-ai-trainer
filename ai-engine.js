@@ -20,6 +20,12 @@ const usefulMainEvent=(g,card)=>{
     return false;
   }
   if(leader!=='OP13-001')return card.type!=='event';
+  if(card.type==='character'){
+    const keepForDefense=Number(card.counter||0)>=2000&&own.life.length<=2&&own.hand.length<=4&&own.field.length>=2;
+    if(keepForDefense&&!['OP10-011','OP14-031'].includes(card.id))return false;
+    if(['OP01-016','EB02-017','EB04-002'].includes(card.id)&&own.deck.length<5)return false;
+    return true;
+  }
   if(card.id==='OP12-037'){
     const activeCharacters=foe.field.filter(target=>!target.rested).length;
     const targets=activeCharacters+Math.min(2,foe.don.active),reserve=desiredLuffyDefenseDon(g);
@@ -66,13 +72,15 @@ const playScore=(g,card)=>{
     if(card.id==='OP16-104'||card.id==='OP12-112')return own.life.length<=2&&own.hand.length<=5?45:96;
     if(Number(card.counter||0)>=2000)return own.life.length<=2?35:82;
   }
-  if(card.id==='OP01-016'||card.id==='EB02-017'||card.id==='EB04-002')return turns<=2?125:78;
+  if(card.id==='OP01-016'||card.id==='EB02-017'||card.id==='EB04-002')return turns<=2?125:(own.hand.length<=4?62:82);
   if(card.id==='OP14-031')return 108+(own.life.length<=2?30:0)+foe.field.filter(c=>!c.rested&&(c.cost||0)<=8).length*8;
   if(card.id==='OP13-118')return 112+(foe.life.length<=2?25:0);
   if(card.id==='ST31-004')return 102+([own.leader,...own.field].reduce((n,c)=>n+(c.attachedDon||0),0)>=3?25:0);
   if(card.id==='OP13-037'||card.id==='OP13-027'||card.id==='OP14-022')return 100;
-  if(card.id==='OP10-011')return 92+(own.life.length<=2?25:0);
-  if(card.id==='ST21-003')return 86;
+  if(card.id==='OP10-011')return 112+(own.life.length<=2?45:0);
+  if(card.id==='OP15-032')return 84+(foe.field.some(target=>!target.rested)?24:0);
+  if(card.id==='EB04-007')return 105+(foe.field.some(target=>(target.power||0)+(target.tempPower||0)>=8000)?38:0)+(own.life.length<=2?15:0);
+  if(card.id==='ST21-003')return own.life.length<=2?58:86;
   if(card.id==='OP12-037'){
     const targets=foe.field.filter(c=>!c.rested).length+Math.min(2,foe.don.active);
     return targets>=2?82:35;
