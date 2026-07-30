@@ -2625,3 +2625,18 @@ GameEngine.prototype.playCard=async function(side,uid){
   }
   return result;
 };
+
+
+/* AI self-play button v351. */
+const previousSelfPlayHome351=UI.prototype.renderHome;
+UI.prototype.renderHome=function(...args){
+  const result=previousSelfPlayHome351.apply(this,args);
+  const setup=this.root?.querySelector('.setup');
+  if(setup&&!setup.querySelector('[data-ai-selfplay]')&&typeof this.a?.selfPlay==='function'){
+    const button=document.createElement('button');
+    button.type='button';button.dataset.aiSelfplay='true';button.textContent='AI同士で対戦データを取る';
+    button.addEventListener('click',()=>this.a.selfPlay());
+    setup.append(button);
+  }
+  return result;
+};
