@@ -7,7 +7,7 @@ const usefulMainEvent=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player,leader=own.leader?.id;
   if(card.type==='stage')return !own.stage&&own.hand.length>=3;
   if(leader==='OP16-080'){
-    if(card.type==='character'&&Number(card.counter||0)>=2000&&own.life.length<=2&&own.hand.length<=4&&own.field.length>=2)return false;
+    if(card.type==='character'&&Number(card.counter||0)>=2000&&own.life.length<=2&&own.hand.length<=3&&own.field.length>=2)return false;
     if(card.type!=='event')return true;
     if(card.id==='OP09-096')return own.deck.length>=3&&own.hand.length<=8;
     if(card.id==='OP16-115')return own.trash.some(target=>target.id!==card.id&&hasTrigger(target));
@@ -51,9 +51,9 @@ const chooseAiAttackTarget=(g,attacker,targets)=>{
 const desiredLuffyDefenseDon=g=>{
   const own=g.sides.ai;
   if(own.leader?.id!=='OP13-001')return 0;
-  if(own.life.length<=1)return Math.min(5,own.don.active);
-  if(own.life.length<=2)return Math.min(4,own.don.active);
-  return Math.min(3,own.don.active);
+  if(own.life.length<=1)return Math.min(3,own.don.active);
+  if(own.life.length<=2)return Math.min(2,own.don.active);
+  return Math.min(2,own.don.active);
 };
 const playScore=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player,turns=g.turnsTaken?.ai||0;
@@ -91,7 +91,7 @@ const playScore=(g,card)=>{
   }
   return 50+Number(card.cost||0)*5+Number(card.power||0)/1000;
 };
-export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;const p=g.sides.ai.hand.filter(c=>legalPlay(g,'ai',c)&&!attempted.has(c.uid)&&usefulMainEvent(g,c)).sort((a,b)=>playScore(g,b)-playScore(g,a))[0];if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
+export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;const p=g.sides.ai.hand.filter(c=>legalPlay(g,'ai',c)&&!attempted.has(c.uid)&&usefulMainEvent(g,c)).sort((a,b)=>playScore(g,b)-playScore(g,a)||String(a.id).localeCompare(String(b.id))||String(a.uid).localeCompare(String(b.uid)))[0];if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
 if(!attempted.has('__luffy_support__')){
   attempted.add('__luffy_support__');
   const own=g.sides.ai;
@@ -120,5 +120,5 @@ if(!attempted.has('__luffy_support__')){
     }
   }
 }
-const targets=attackTargets(g,'ai').filter(target=>target.kind==='leader'||g.sides.player.field.find(card=>card.uid===target.uid)?.rested),attackers=[g.sides.ai.leader,...g.sides.ai.field].filter(c=>(c.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(c.uid)&&c.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',c)&&targets.some(t=>battlePower(c)>=targetPower(g,t))).sort((a,b)=>battlePower(b)-battlePower(a)),a=attackers[0];if(a){const target=chooseAiAttackTarget(g,a,targets);if(target){const targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(650);continue}}await show('行動を終えてターンを終了します');const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
+const targets=attackTargets(g,'ai').filter(target=>target.kind==='leader'||g.sides.player.field.find(card=>card.uid===target.uid)?.rested),attackers=[g.sides.ai.leader,...g.sides.ai.field].filter(c=>(c.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(c.uid)&&c.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',c)&&targets.some(t=>battlePower(c)>=targetPower(g,t))).sort((a,b)=>battlePower(b)-battlePower(a)||String(a.id).localeCompare(String(b.id))||String(a.uid).localeCompare(String(b.uid))),a=attackers[0];if(a){const target=chooseAiAttackTarget(g,a,targets);if(target){const targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(650);continue}}await show('行動を終えてターンを終了します');const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
 export function chooseDefense(g,s,a){const needed=Math.max(0,a.power-a.targetPower+1000),block=blockers(g,s)[0];if(block&&a.targetKind==='leader'&&g.sides[s].life.length<=2)return{blockerUid:block.uid,counters:[]};const opts=counterOptions(g,s).sort((x,y)=>y.counter-x.counter),used=[];let total=0;for(const c of opts){if(total>=needed||g.sides[s].hand.length-used.length<=2)break;used.push(c.uid);total+=c.counter}return{counters:total>=needed?used:[]}}
