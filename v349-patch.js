@@ -2555,7 +2555,7 @@ GameEngine.prototype.resolveTrigger=async function(use){
   for(let guard=0;guard<8;guard++){
     const pending=this.state.pending;
     if(!pending||pending.side!=='ai')break;
-    const before=pending;
+    const beforeToken=String(pending.kind)+':'+String(pending.stage||'')+':'+String((pending.options||[]).join(','));
     if(pending.kind==='effectChoice'){
       await this.resolveTeachKoChoice('ai',(pending.options||[]).slice(0,pending.max||1));
     }else if(pending.kind==='handDiscardChoice'){
@@ -2572,7 +2572,8 @@ GameEngine.prototype.resolveTrigger=async function(use){
     }else if(pending.kind==='darkWaterNegateChoice'&&typeof this.resolveDarkWaterChoice==='function'){
       await this.resolveDarkWaterChoice('ai',(pending.options||[])[0]||null);
     }else break;
-    if(this.state.pending===before)break;
+    const after=this.state.pending,afterToken=after?String(after.kind)+':'+String(after.stage||'')+':'+String((after.options||[]).join(',')):'';
+    if(after&&afterToken===beforeToken)break;
   }
   if(!this.state.pending&&this.state.activeSide==='player'&&!this.state.winner)this.state.phase='main';
   return true;
