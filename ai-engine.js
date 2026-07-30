@@ -153,6 +153,40 @@ const matchupPlayBonus=(g,card)=>{
   }
   return bonus;
 };
+const deckPlanBonus=(g,card)=>{
+  const own=g.sides.ai,foe=g.sides.player,turns=g.turnsTaken?.ai||0;
+  const first=g.firstPlayer==='ai',don=Number(own.don?.total||0),foeId=foe.leader?.id;
+  const copiesOnBoard=own.field.filter(item=>item.id===card.id).length;
+  let bonus=0;
+
+  if(own.leader?.id==='OP13-001'){
+    if(card.id==='ST31-005'&&!own.stage)bonus+=turns<=2?85:30;
+    if(['OP01-016','EB02-017','EB04-002'].includes(card.id))bonus+=turns<=2?55:own.hand.length<=4?32:8;
+    if(don>=4&&don<=6&&['OP13-037','OP13-027','OP14-022','OP15-032'].includes(card.id))bonus+=first?26:34;
+    if(['OP13-118','ST31-004','EB04-007'].includes(card.id)){
+      bonus+=foe.life.length<=2?58:24;
+      if(foeId==='OP16-080')bonus+=18;
+    }
+    if(['OP10-011','OP14-031'].includes(card.id))bonus+=own.life.length<=2?52:(first?12:24);
+    if(card.id==='ST21-003')bonus+=foe.life.length<=1?120:-180;
+  }
+
+  if(own.leader?.id==='OP16-080'){
+    if(card.id==='OP09-099'&&!own.stage)bonus+=turns<=2?80:28;
+    if(['OP16-103','OP16-109','OP16-110'].includes(card.id))bonus+=turns<=3?44:8;
+    if(card.id==='OP16-109')bonus+=foe.field.filter(target=>engineCost(g,'player',target)<=1).length*30;
+    if(card.id==='OP09-096')bonus+=turns<=3?48:12;
+    if(card.id==='OP09-093')bonus+=don>=10?95:-80;
+    if(card.id==='OP16-119')bonus+=own.life.length<=2?52:18;
+    if(card.id==='EB04-058')bonus+=own.life.length<=2?70:15;
+    if(foeId==='OP13-001'&&['OP09-093','EB04-059','OP16-109'].includes(card.id))bonus+=24;
+  }
+
+  bonus-=copiesOnBoard*32;
+  if(Number(card.counter||0)>=2000&&own.life.length<=2)bonus-=48;
+  if(own.hand.length<=3&&Number(card.counter||0)>=1000)bonus-=18;
+  return bonus;
+};
 const combatOutlook=(g,attempted=new Set())=>{
   const own=g.sides.ai,foe=g.sides.player;
   const attackers=[own.leader,...own.field].filter(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
@@ -254,7 +288,7 @@ const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
     const removedBlocker=afterCombat.activeBlockers<beforeCombat.activeBlockers;
     const tactical=preCombatPlayUseful(g,card)||(!beforeCombat.lethal&&afterCombat.lethal)||removedBlocker||afterCombat.score>=beforeCombat.score+24;
     if(preCombatOnly&&!tactical)continue;
-    let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card)+getCardLearningBonus(g,card)+(afterCombat.score-beforeCombat.score)*2;
+    let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card)+deckPlanBonus(g,card)+getCardLearningBonus(g,card)+(afterCombat.score-beforeCombat.score)*2;
     const safetyBefore=opponentTurnRisk(g),safetyAfter=opponentTurnRisk(shadow.state);
     score+=(safetyBefore-safetyAfter)*1.8;
     const defensiveCardCost=Number(card.counter||0)>=2000?(g.sides.ai.life.length<=2?58:22):Number(card.counter||0)/120;
@@ -277,7 +311,7 @@ const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
 };
 const teachSearchPriority=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player,turns=g.turnsTaken?.ai||0;
-  let score=playScore(g,card)+Number(card.counter||0)/250;
+  let score=playScore(g,card)+deckPlanBonus(g,card)+Number(card.counter||0)/250;
   if(card.id==='OP09-099'&&!own.stage)score+=45;
   if(['OP16-103','OP16-109','OP16-110'].includes(card.id)&&turns<=3)score+=30;
   if(card.id==='OP16-109'&&foe.field.some(target=>engineCost(g,'player',target)<=1))score+=45;
@@ -354,7 +388,7 @@ const resolveAiPostPlayChoices=async engine=>{
       const chosen=(pending.options||[]).map(uid=>own.trash.find(card=>card.uid===uid)).filter(Boolean).sort((a,b)=>teachSearchPriority(engine.state,b)-teachSearchPriority(engine.state,a))[0];
       engine.resolveShiryuChoice('ai',chosen?.uid||null);
     }else if(pending.kind==='luffyNamiSearch'&&typeof engine.resolveLuffyNamiSearch==='function'){
-      const chosen=(pending.cards||[]).filter(card=>(pending.options||[]).includes(card.uid)).sort((a,b)=>playScore(engine.state,b)-playScore(engine.state,a))[0];
+      const chosen=(pending.cards||[]).filter(card=>(pending.options||[]).includes(card.uid)).sort((a,b)=>(playScore(engine.state,b)+deckPlanBonus(engine.state,b))-(playScore(engine.state,a)+deckPlanBonus(engine.state,a)))[0];
       engine.resolveLuffyNamiSearch('ai',chosen?.uid||null);
     }else break;
   }
