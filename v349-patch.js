@@ -1942,3 +1942,106 @@ UI.prototype.renderGame=function(g){
   skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP08036TriggerChoice('player',null);this.renderGame(engineRef.state);window.__resumeAi349?.()});
   foot.append(skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
 };
+
+
+/* OP13-001 モンキー・D・ルフィ Leader
+   DON!! x1 / On opponent's attack: when active DON!! is 5 or less, rest
+   any number of DON!!; for each, give this Leader or one Straw Hat
+   Character +2000 during this battle. */
+function syncOP13001Leader349(state){
+  if(!state?.sides)return;
+  for(const sideName of ['player','ai']){
+    const leader=state.sides[sideName]?.leader;
+    if(leader?.id!=='OP13-001')continue;
+    leader.name='モンキー・D・ルフィ';
+    leader.type='leader';leader.color=['red','green'];leader.power=5000;leader.life=4;
+    leader.traits=['超新星','麦わらの一味'];
+    leader.text='【ドン!!×1】【相手のアタック時】自分のアクティブのDON!!が5枚以下の場合、自分のDON!!を任意の枚数レストにできる。レストにしたDON!!1枚につき、このリーダーか自分の特徴《麦わらの一味》を持つキャラ1枚までを、このバトル中、パワー+2000。';
+    leader.keywords=['opponentAttack'];
+  }
+}
+GameEngine.prototype.resolveOP13001DefenseBoost=function(side,targetUids=[]){
+  syncOP13001Leader349(this.state);
+  const battle=this.state.pending,own=this.state.sides[side],leader=own.leader;
+  if(battle?.kind!=='battle'||battle.defendingSide!==side||leader?.id!=='OP13-001'||(leader.attachedDon||0)<1||own.don.active>5)return false;
+  battle.op13001Prompted=true;
+  const eligible=[leader,...own.field.filter(card=>(card.traits||[]).includes('麦わらの一味'))];
+  const requested=Array.isArray(targetUids)?targetUids:[targetUids];
+  const chosen=requested.filter(uid=>eligible.some(card=>card.uid===uid)).slice(0,own.don.active);
+  const count=chosen.length;
+  if(count){
+    own.don.active-=count;own.don.rested+=count;
+    battle.op13001Buffs=battle.op13001Buffs||[];
+    for(const uid of chosen){
+      const target=eligible.find(card=>card.uid===uid);if(!target)continue;
+      target.tempPower=(target.tempPower||0)+2000;
+      battle.op13001Buffs.push(uid);
+    }
+    const summary=eligible.filter(card=>chosen.includes(card.uid)).map(card=>{
+      const n=chosen.filter(uid=>uid===card.uid).length;return card.name+' +'+(n*2000);
+    });
+    this.log('OP13-001 リーダー効果：DON!!'+count+'枚をレスト（'+summary.join('、')+'）');
+  }else this.log('OP13-001 リーダー効果を使用しませんでした');
+  return true;
+};
+const previousOP13001EndBattle349=GameEngine.prototype.endBattle;
+GameEngine.prototype.endBattle=function(...args){
+  const battle=this.state.pending;
+  if(battle?.kind==='battle'&&Array.isArray(battle.op13001Buffs)){
+    const side=battle.defendingSide,own=this.state.sides[side],cards=[own.leader,...own.field];
+    for(const uid of battle.op13001Buffs){
+      const card=cards.find(item=>item.uid===uid);
+      if(card)card.tempPower=(card.tempPower||0)-2000;
+    }
+    battle.op13001Buffs=[];
+  }
+  return previousOP13001EndBattle349.apply(this,args);
+};
+const previousOP13001Start349=GameEngine.prototype.start;
+GameEngine.prototype.start=function(...args){const result=previousOP13001Start349.apply(this,args);syncOP13001Leader349(this.state);return result};
+const previousOP13001Load349=GameEngine.prototype.load;
+GameEngine.prototype.load=function(saved){const result=previousOP13001Load349.call(this,saved);syncOP13001Leader349(this.state);return result};
+
+const previousOP13001Defense349=UI.prototype.defense;
+UI.prototype.defense=function(g,...args){
+  syncOP13001Leader349(g);
+  const battle=g.pending,own=g.sides.player,leader=own.leader;
+  const canPrompt=battle?.kind==='battle'&&battle.defendingSide==='player'&&!battle.op13001Prompted
+    &&leader?.id==='OP13-001'&&(leader.attachedDon||0)>=1&&own.don.active<=5&&own.don.active>0;
+  if(!canPrompt)return previousOP13001Defense349.call(this,g,...args);
+  this.close();
+  const engineRef=window.__luffyEngine349,eligible=[leader,...own.field.filter(card=>(card.traits||[]).includes('麦わらの一味'))],chosen=[];
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>相手のアタック時</small><h2>OP13-001 ルフィ：リーダー効果</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');help.textContent='アクティブDON!!をレストにし、1枚につきリーダーか《麦わらの一味》のキャラへ、このバトル中パワー+2000。同じカードを複数回選べます。';
+  const status=document.createElement('p');
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  const refresh=()=>{
+    status.textContent='使用するDON!! '+chosen.length+' / '+own.don.active+'枚';
+    for(const button of grid.querySelectorAll('button[data-id]')){
+      const count=chosen.filter(uid=>uid===button.dataset.id).length;
+      const card=eligible.find(item=>item.uid===button.dataset.id);
+      const note=button.querySelector('small');
+      if(note)note.textContent='現在 '+((card?.power||0)+(card?.tempPower||0))+' / 選択 ×'+count+'（+'+(count*2000)+'）';
+    }
+  };
+  for(const card of eligible){
+    const button=document.createElement('button');button.dataset.id=card.uid;
+    if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name+'のカード画像';image.loading='eager';button.append(image)}
+    const name=document.createElement('strong');name.textContent=card.name;button.append(name);
+    const note=document.createElement('small');button.append(note);
+    button.addEventListener('click',()=>{if(chosen.length<own.don.active){chosen.push(card.uid);refresh()}});
+    grid.append(button);
+  }
+  body.append(help,status,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer';
+  const reset=document.createElement('button');reset.textContent='選択を戻す';reset.addEventListener('click',()=>{chosen.length=0;refresh()});
+  const confirm=document.createElement('button');confirm.className='primary';confirm.textContent='効果を決定';
+  confirm.addEventListener('click',()=>{this.close();engineRef?.resolveOP13001DefenseBoost('player',chosen);this.defense(engineRef.state)});
+  const skip=document.createElement('button');skip.textContent='効果を使わない';
+  skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP13001DefenseBoost('player',[]);this.defense(engineRef.state)});
+  foot.append(reset,confirm,skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);refresh();
+};
