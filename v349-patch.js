@@ -692,7 +692,7 @@ UI.prototype.renderGame=function(g){
 const previousSearchHandRender349=UI.prototype.renderGame;
 UI.prototype.renderGame=function(g){
   previousSearchHandRender349.call(this,g);
-  if(g.pending?.kind!=='luffyNamiSearch'||g.pending.side!=='player'||!this.modal)return;
+  if(!['luffyNamiSearch','teachSearch3Choice'].includes(g.pending?.kind)||g.pending.side!=='player'||!this.modal)return;
   const footer=this.modal.querySelector('.redirect-footer');
   if(!footer||footer.querySelector('[data-search-hand]'))return;
   const handButton=document.createElement('button');
