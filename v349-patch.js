@@ -2606,12 +2606,11 @@ GameEngine.prototype.playCard=async function(side,uid){
   const source=this.state.sides[side].hand.find(card=>card.uid===uid);
   const result=await previousAiSearchPlay351.call(this,side,uid);
   if(!result||side!=='ai')return result;
-  const pending=this.state.pending;
+  const own=this.state.sides.ai,pending=this.state.pending;
   if(pending?.kind==='luffyNamiSearch'&&pending.side==='ai'){
     const chosen=pending.cards.filter(card=>pending.options.includes(card.uid)).sort((a,b)=>aiSearchValue351(this.state,b)-aiSearchValue351(this.state,a))[0];
     this.resolveLuffyNamiSearch('ai',chosen?.uid||null);
   }else if(pending?.kind==='teachSearch3Choice'&&pending.side==='ai'){
-    const own=this.state.sides.ai;
     const chosen=(pending.cards||[]).filter(card=>card.id!=='OP09-096'&&(card.traits||[]).includes('黒ひげ海賊団')).sort((a,b)=>aiSearchValue351(this.state,b)-aiSearchValue351(this.state,a))[0];
     if(chosen){own.hand.push(chosen);this.log(chosen.name+'をサーチで手札に加えた')}
     own.trash.push(...(pending.cards||[]).filter(card=>card.uid!==chosen?.uid));
