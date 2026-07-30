@@ -2155,11 +2155,45 @@ UI.prototype.renderGame=function(g){
 };
 
 
+
+
+UI.prototype.aiDeckPicker=function(decks,current){
+  this.close();
+  const make=(tag,className,text)=>{const node=document.createElement(tag);if(className)node.className=className;if(text!=null)node.textContent=text;return node};
+  const overlay=make('div','dialog'),panel=make('section','sheet player-deck-picker');
+  panel.append(make('h2','', 'AIデッキを選択'),make('p','zone-help','AIが使用するデッキを選んでください。'));
+  const options=make('div','player-deck-options');
+  for(const [key,deck] of Object.entries(decks)){
+    const button=make('button',key===current?'selected':'');
+    const name=make('strong','',deck.name),count=make('span','',String(deck.cards.reduce((total,card)=>total+card.count,0))+'枚');
+    button.append(name,count);
+    if(key===current)button.append(make('b','','選択中'));
+    button.addEventListener('click',()=>this.a.selectAiDeck(key));
+    options.append(button);
+  }
+  const close=make('button','primary zone-close','閉じる');
+  close.addEventListener('click',()=>this.close());
+  panel.append(options,close);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
+
 // Start screen leader previews: follow the currently selected player and AI decks.
 const previousRenderHomeLeaderPreview349=UI.prototype.renderHome;
 UI.prototype.renderHome=function(hasSave,decks={}){
   previousRenderHomeLeaderPreview349.call(this,hasSave,decks);
   const tiles=[...this.root.querySelectorAll('.versus .deck-tile')];
+  const aiTile=tiles[1];
+  if(aiTile&&this.a.openAiDeckPicker){
+    aiTile.classList.add('ai-deck-select');
+    aiTile.setAttribute('role','button');
+    aiTile.tabIndex=0;
+    aiTile.style.cursor='pointer';
+    aiTile.addEventListener('click',()=>this.a.openAiDeckPicker());
+    aiTile.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();this.a.openAiDeckPicker()}});
+    const hint=document.createElement('small');
+    hint.textContent='タップして変更';
+    hint.style.color='#f4c542';
+    aiTile.append(hint);
+  }
   const leaders=[
     {tile:tiles[0],src:decks.playerLeaderImage,name:decks.playerLeaderName||decks.playerName||'PLAYER'},
     {tile:tiles[1],src:decks.aiLeaderImage,name:decks.aiLeaderName||decks.aiName||'AI'}
