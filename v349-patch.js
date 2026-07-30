@@ -2255,3 +2255,25 @@ GameEngine.prototype.playCard=async function(side,uid){
   }
   return result;
 };
+
+
+// Let an AI-controlled OP13-001 Luffy evaluate and use its defensive Leader effect.
+const previousAiLuffyDefense349=GameEngine.prototype.autoResolveDefense;
+GameEngine.prototype.autoResolveDefense=function(...args){
+  const battle=this.state.pending;
+  if(battle?.kind==='battle'&&battle.defendingSide==='ai'&&!battle.op13001Prompted){
+    const own=this.state.sides.ai,leader=own.leader;
+    if(leader?.id==='OP13-001'&&(leader.attachedDon||0)>=1&&own.don.active>0&&own.don.active<=5){
+      const target=battle.targetKind==='leader'?leader:own.field.find(card=>card.uid===battle.targetUid);
+      const eligible=target&&(target.uid===leader.uid||(target.traits||[]).includes('麦わらの一味'));
+      if(eligible){
+        const shortfall=Math.max(0,(battle.power||0)-(battle.targetPower||0));
+        const needed=Math.floor(shortfall/2000)+1;
+        const urgent=battle.targetKind==='character'||own.life.length<=2||shortfall<=4000;
+        const count=urgent?Math.min(needed,own.don.active):0;
+        this.resolveOP13001DefenseBoost('ai',Array(count).fill(target.uid));
+      }else this.resolveOP13001DefenseBoost('ai',[]);
+    }
+  }
+  return previousAiLuffyDefense349.apply(this,args);
+};
