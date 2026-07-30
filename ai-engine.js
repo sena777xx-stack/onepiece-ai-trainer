@@ -302,26 +302,31 @@ const chooseBestAttack=async(engine,attempted)=>{
       const defender=shadow.state.sides.player;
       const required=Math.max(0,Number(battle.power||0)-Number(battle.targetPower||0)+1000);
       const counterCapacity=counterOptions(shadow.state,'player').reduce((sum,card)=>sum+Number(card.counter||0),0);
-      const force=Math.min(required,counterCapacity)/1000;
+      const estimatedCounter=Math.min(counterCapacity,Math.max(0,foe.hand.length-1)*900+(foe.life.length<=1?700:0));
+      const force=Math.min(required,estimatedCounter)/1000;
       let score=positionScore(shadow.state)*.08+force*4;
       if(target.kind==='leader'){
         const doubleAttack=(attacker.keywords||[]).includes('doubleAttack')||(attacker.keywords||[]).includes('double attack');
-        const likelyDamage=required>counterCapacity;
+        const likelyDamage=required>estimatedCounter;
         score+=28+(4-foe.life.length)*12+(likelyDamage?52:0)+(doubleAttack?35:0);
         score+=policy.aggression+policy.efficiency*.35;
-        if(outlook.lethal)score+=700;
+        const attackMargin=Math.max(0,Number(battle.power||0)-Number(battle.targetPower||0));
+        const efficientPressure=attackMargin>=1000&&attackMargin<=3000;
+        if(efficientPressure)score+=foe.hand.length>=5?42:24;
+        score-=Math.max(0,attackMargin-5000)/250;
+        if(outlook.lethal)score+=700+(doubleAttack?70:0)+(attackMargin<=3000?85:0);
         if(foe.life.length<=1&&likelyDamage)score+=1000;
       }else{
         const card=foe.field.find(item=>item.uid===target.uid);
         const value=Number(card?.cost||0)*5+Number(card?.power||0)/1000*3+((card?.keywords||[]).includes('blocker')?18:0);
-        score+=value+(required>counterCapacity?30:0)-8;
+        score+=value+(required>estimatedCounter?30:0)-8;
         score-=policy.aggression*.4;
         if(outlook.lethal)score+=((card?.keywords||[]).includes('blocker')?80:-500);
       }
       choices.push({attacker,target,score});
     }
   }
-  return choices.sort((a,b)=>b.score-a.score||battlePower(b.attacker)-battlePower(a.attacker)||String(a.attacker.id).localeCompare(String(b.attacker.id))||String(a.target.uid).localeCompare(String(b.target.uid)))[0]||null;
+  return choices.sort((a,b)=>b.score-a.score||(outlook.lethal?battlePower(a.attacker)-battlePower(b.attacker):battlePower(b.attacker)-battlePower(a.attacker))||String(a.attacker.id).localeCompare(String(b.attacker.id))||String(a.target.uid).localeCompare(String(b.target.uid)))[0]||null;
 };
 const resolveAiPostPlayChoices=async engine=>{
   for(let guard=0;guard<8;guard++){
