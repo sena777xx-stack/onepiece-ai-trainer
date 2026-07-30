@@ -2182,7 +2182,7 @@ UI.prototype.renderHome=function(hasSave,decks={}){
   previousRenderHomeLeaderPreview349.call(this,hasSave,decks);
   const tiles=[...this.root.querySelectorAll('.versus .deck-tile')];
   const aiTile=tiles[1];
-  if(aiTile&&this.a.openAiDeckPicker){
+  if(aiTile&&this.a.openAiDeckPicker&&!aiTile.classList.contains('ai-deck-select')){
     aiTile.classList.add('ai-deck-select');
     aiTile.setAttribute('role','button');
     aiTile.tabIndex=0;
@@ -2199,7 +2199,7 @@ UI.prototype.renderHome=function(hasSave,decks={}){
     {tile:tiles[1],src:decks.aiLeaderImage,name:decks.aiLeaderName||decks.aiName||'AI'}
   ];
   for(const leader of leaders){
-    if(!leader.tile)continue;
+    if(!leader.tile||leader.tile.querySelector('.home-leader-preview'))continue;
     const frame=document.createElement('div');
     frame.className='home-leader-preview';
     Object.assign(frame.style,{width:'min(22vw,96px)',aspectRatio:'5 / 7',margin:'10px auto 7px',borderRadius:'9px',overflow:'hidden',border:'2px solid rgba(245,190,45,.75)',background:'#080d17',boxShadow:'0 7px 18px rgba(0,0,0,.35)',flex:'0 0 auto'});
