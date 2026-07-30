@@ -2223,3 +2223,35 @@ UI.prototype.renderHome=function(hasSave,decks={}){
     Object.assign(leader.tile.style,{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',minWidth:'0'});
   }
 };
+
+
+// Resolve Luffy deck choices automatically when that deck is controlled by AI.
+const previousAiLuffyChoicePlay349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const result=await previousAiLuffyChoicePlay349.call(this,side,uid);
+  if(!result||side!=='ai')return result;
+  const pending=this.state.pending;
+  if(pending?.side!=='ai')return result;
+  if(pending.kind==='luffyNamiSearch'){
+    const best=pending.cards.filter(card=>pending.options.includes(card.uid))
+      .sort((a,b)=>((b.cost||0)-(a.cost||0))||((b.power||0)-(a.power||0)))[0];
+    this.resolveLuffyNamiSearch('ai',best?.uid||null);
+  }else if(pending.kind==='luffySanjiChoice'){
+    const own=this.state.sides.ai;
+    const best=own.field.filter(card=>pending.options.includes(card.uid))
+      .sort((a,b)=>((b.power||0)+(b.tempPower||0))-((a.power||0)+(a.tempPower||0)))[0];
+    this.resolveLuffySanjiChoice('ai',best?.uid||null);
+  }else if(pending.kind==='st31004PowerChoice'){
+    const foe=this.state.sides.player;
+    const best=foe.field.filter(card=>pending.options.includes(card.uid))
+      .sort((a,b)=>((b.power||0)+(b.tempPower||0))-((a.power||0)+(a.tempPower||0)))[0];
+    const chosen=best?Array(Math.max(0,pending.max||0)).fill(best.uid):[];
+    this.resolveST31004Choice('ai',chosen);
+  }else if(pending.kind==='op14031RestChoice'){
+    const foe=this.state.sides.player;
+    const chosen=foe.field.filter(card=>pending.options.includes(card.uid))
+      .sort((a,b)=>((b.cost||0)-(a.cost||0))||((b.power||0)-(a.power||0))).slice(0,2).map(card=>card.uid);
+    this.resolveOP14031RestChoice('ai',chosen);
+  }
+  return result;
+};
