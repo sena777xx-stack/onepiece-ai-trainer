@@ -1355,12 +1355,14 @@ UI.prototype.renderGame=function(g){
 };
 
 
-/* Hand-card detail: show the full card image above its text. */
+/* Card detail: show the full image for hand cards and all cards on the board. */
 const previousHandCardImageShowCard349=UI.prototype.showCard;
 UI.prototype.showCard=function(side,card,g){
   previousHandCardImageShowCard349.call(this,side,card,g);
-  const isHandCard=Boolean(g?.sides?.[side]?.hand?.some(item=>item.uid===card.uid));
-  if(!isHandCard||!card.imageUrl)return;
+  const owner=g?.sides?.[side];
+  const isHandCard=Boolean(owner?.hand?.some(item=>item.uid===card.uid));
+  const isBoardCard=Boolean(owner?.leader?.uid===card.uid||owner?.field?.some(item=>item.uid===card.uid)||owner?.stage?.uid===card.uid);
+  if((!isHandCard&&!isBoardCard)||!card.imageUrl)return;
   const panel=this.modal?.querySelector('.sheet');
   const title=panel?.querySelector('h2');
   if(!panel||!title||panel.querySelector('[data-hand-card-preview]'))return;
