@@ -92,7 +92,39 @@ const playScore=(g,card)=>{
   }
   return 50+Number(card.cost||0)*5+Number(card.power||0)/1000;
 };
-export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;const p=g.sides.ai.hand.filter(c=>legalPlay(g,'ai',c)&&!attempted.has(c.uid)&&usefulMainEvent(g,c)).sort((a,b)=>playScore(g,b)-playScore(g,a)||String(a.id).localeCompare(String(b.id))||String(a.uid).localeCompare(String(b.uid)))[0];if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
+const positionScore=g=>{
+  const value=(side,enemy)=>{
+    const field=side.field.reduce((sum,card)=>sum+Number(card.power||0)/1000*3+Number(card.cost||0)*1.4+((card.keywords||[]).includes('blocker')?5:0)+(card.rested?-0.4:0),0);
+    const hand=side.hand.reduce((sum,card)=>sum+3.5+Math.min(2,Number(card.counter||0)/1000),0);
+    const pressure=[side.leader,...side.field].filter(card=>!card.rested).reduce((sum,card)=>sum+Math.max(0,(Number(card.power||0)+Number(card.tempPower||0)-5000)/1000),0);
+    return side.life.length*30+hand+field+(side.stage?5:0)+side.don.active*.35+pressure+(enemy.life.length<=1?8:0);
+  };
+  return value(g.sides.ai,g.sides.player)-value(g.sides.player,g.sides.ai);
+};
+const cloneForLookahead=engine=>{
+  const shadow=Object.create(Object.getPrototypeOf(engine));
+  Object.assign(shadow,engine);
+  shadow.state=typeof structuredClone==='function'?structuredClone(engine.state):JSON.parse(JSON.stringify(engine.state));
+  shadow.history=[];
+  return shadow;
+};
+const chooseBestPlay=async(engine,attempted)=>{
+  const g=engine.state,candidates=g.sides.ai.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card));
+  const evaluated=[];
+  for(const card of candidates){
+    const shadow=cloneForLookahead(engine);
+    let success=false;
+    try{success=Boolean(await shadow.playCard('ai',card.uid))}catch{}
+    if(!success){evaluated.push({card,score:-1e9});continue}
+    let score=positionScore(shadow.state)+playScore(g,card)*.08;
+    if(shadow.state.pending?.side==='ai')score-=18;
+    if(shadow.state.winner==='ai')score+=10000;
+    if(shadow.state.winner==='player')score-=10000;
+    evaluated.push({card,score});
+  }
+  return evaluated.sort((a,b)=>b.score-a.score||playScore(g,b.card)-playScore(g,a.card)||String(a.card.id).localeCompare(String(b.card.id))||String(a.card.uid).localeCompare(String(b.card.uid)))[0]?.card||null;
+};
+export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;const p=await chooseBestPlay(engine,attempted);if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
 if(!attempted.has('__luffy_support__')){
   attempted.add('__luffy_support__');
   const own=g.sides.ai;
