@@ -428,14 +428,14 @@ const defenseHandKeepValue=card=>{
 };
 const blockerSacrificeValue=card=>Number(card.cost||0)*1.5+Number(card.power||0)/2000+((card.effects||[]).some(effect=>effect.timing==='onKO')?-5:0);
 export function chooseDefense(g,s,a){
-  const own=g.sides[s],needed=Math.max(0,Number(a.power||0)-Number(a.targetPower||0)+1000);
+  const own=g.sides[s],policy=s==='ai'?getAiPolicyBias(g):{safety:0},needed=Math.max(0,Number(a.power||0)-Number(a.targetPower||0)+1000);
   if(needed<=0)return{counters:[]};
   const attackingSide=s==='player'?'ai':'player',attacker=[g.sides[attackingSide].leader,...g.sides[attackingSide].field].find(card=>card.uid===a.attackerUid);
   const target=a.targetKind==='leader'?own.leader:own.field.find(card=>card.uid===a.targetUid);
   const doubleAttack=(attacker?.keywords||[]).includes('doubleAttack')||(attacker?.keywords||[]).includes('double attack');
   const targetHasKoValue=Boolean(target&&(target.effects||[]).some(effect=>effect.timing==='onKO')&&(target.effectsNegatedThroughTurn??target.effectsNegatedTurn??-1)<g.turn);
   if(a.targetKind==='character'&&targetHasKoValue&&own.life.length>0)return{counters:[]};
-  if(a.targetKind==='leader'&&own.life.length>=3&&!doubleAttack&&needed<=3000)return{counters:[]};
+  if(a.targetKind==='leader'&&own.life.length>=3&&!doubleAttack&&needed<=3000&&policy.safety<12)return{counters:[]};
   const availableBlockers=blockers(g,s).sort((x,y)=>blockerSacrificeValue(x)-blockerSacrificeValue(y)||String(x.id).localeCompare(String(y.id)));
   const mustGuard=a.targetKind==='leader'&&(own.life.length<=1||doubleAttack);
   if(availableBlockers.length&&a.targetKind==='leader'&&(mustGuard||(own.life.length===2&&needed>=3000)||needed>=5000))return{blockerUid:availableBlockers[0].uid,counters:[]};
@@ -451,6 +451,6 @@ export function chooseDefense(g,s,a){
     const waste=(total-needed)/1000,candidate={ids,total,count,loss,score:loss+waste*1.7+count*.45};
     if(!best||candidate.score<best.score||(candidate.score===best.score&&candidate.total<best.total)||(candidate.score===best.score&&candidate.total===best.total&&candidate.ids.join().localeCompare(best.ids.join())<0))best=candidate;
   }
-  if(!mustGuard&&a.targetKind==='leader'&&own.life.length>=2&&best?.score>10)return{counters:[]};
+  if(!mustGuard&&a.targetKind==='leader'&&own.life.length>=2&&best?.score>Math.max(5,10-policy.safety*.3))return{counters:[]};
   return{counters:best?.ids||[]};
 }
