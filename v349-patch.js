@@ -2282,18 +2282,28 @@ GameEngine.prototype.autoResolveDefense=function(...args){
 // Strategic AI mulligan, kept here as a compatibility layer for cached engine modules.
 const shuffleAiOpening349=list=>{const result=[...list];for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]]}return result};
 const shouldAiKeepOpening349=engine=>{
-  const side=engine.state.sides.ai,hand=side.hand;
-  if(side.leader.id==='OP13-001'){
+  const ai=engine.state.sides.ai,foe=engine.state.sides.player,hand=ai.hand;
+  const first=engine.state.firstPlayer==='ai',foeId=foe.leader?.id;
+  if(ai.leader.id==='OP13-001'){
     const starters=new Set(['ST31-005','OP01-016','EB02-017','EB04-002']);
-    const early=hand.filter(card=>starters.has(card.id)||(card.type==='character'&&(card.cost||0)<=2)).length;
-    const curve=hand.filter(card=>card.type==='character'&&(card.cost||0)>=4&&(card.cost||0)<=5).length;
-    const bricks=hand.filter(card=>card.type==='event'||(card.cost||0)>=6).length;
-    const score=hand.reduce((total,card)=>total+(starters.has(card.id)?4:(card.type==='character'&&(card.cost||0)<=2)?2:(card.type==='character'&&(card.cost||0)<=5)?2:(card.counter||0)>=2000?1:-1),0);
-    return early>=1&&curve>=1&&bricks<=2&&score>=5;
+    const early=hand.filter(card=>starters.has(card.id)||(card.type==='character'&&Number(card.cost||0)<=2)).length;
+    const curve=hand.filter(card=>card.type==='character'&&Number(card.cost||0)>=4&&Number(card.cost||0)<=5).length;
+    const finishers=hand.filter(card=>Number(card.cost||0)>=6).length;
+    const defense=hand.reduce((sum,card)=>sum+Number(card.counter||0),0);
+    let score=hand.reduce((sum,card)=>sum+(starters.has(card.id)?6:0)+(card.id==='OP10-011'?4:0)+(['OP13-037','OP14-022','OP13-027'].includes(card.id)?3:0)+(Number(card.counter||0)>=2000?2:0)-(Number(card.cost||0)>=7?2:0),0);
+    if(!first&&curve)score+=2;
+    if(foeId==='OP16-080'&&hand.some(card=>card.id==='OP10-011'))score+=3;
+    return early>=1&&curve>=1&&finishers<=2&&defense>=2000&&score>=10;
   }
-  const early=hand.filter(card=>(card.cost||0)<=2&&card.type!=='event').length;
-  const middle=hand.filter(card=>(card.cost||0)>=3&&(card.cost||0)<=5&&card.type==='character').length;
-  return early>=1&&middle>=1;
+  const starters=new Set(['OP09-099','OP09-096','OP16-103','OP16-109','OP16-110']);
+  const early=hand.filter(card=>starters.has(card.id)).length;
+  const middle=hand.filter(card=>card.type==='character'&&Number(card.cost||0)>=4&&Number(card.cost||0)<=6).length;
+  const top=hand.filter(card=>Number(card.cost||0)>=8).length;
+  const defense=hand.reduce((sum,card)=>sum+Number(card.counter||0),0);
+  let score=hand.reduce((sum,card)=>sum+(starters.has(card.id)?5:0)+(card.id==='OP09-099'?3:0)+(['OP09-086','EB04-058','OP16-108'].includes(card.id)?4:0)+(Number(card.counter||0)>=2000?2:0)-(Number(card.cost||0)>=8?2:0),0);
+  if(foeId==='OP13-001'&&hand.some(card=>card.id==='OP16-109'))score+=4;
+  if(!first&&middle)score+=2;
+  return early>=1&&middle>=1&&top<=1&&defense>=2000&&score>=10;
 };
 const previousStrategicMulliganStart349=GameEngine.prototype.start;
 GameEngine.prototype.start=function(first='player'){
@@ -2566,4 +2576,52 @@ GameEngine.prototype.resolveTrigger=async function(use){
   }
   if(!this.state.pending&&this.state.activeSide==='player'&&!this.state.winner)this.state.phase='main';
   return true;
+};
+
+
+/* AI search selection v351: choose cards by curve, defense and matchup needs. */
+const aiSearchValue351=(state,card)=>{
+  const own=state.sides.ai,foe=state.sides.player,turns=state.turnsTaken?.ai||0;
+  let value=Number(card.counter||0)/500+Number(card.power||0)/2000;
+  if(own.leader.id==='OP13-001'){
+    if(card.id==='ST31-005'&&!own.stage)value+=18;
+    if(['OP01-016','EB02-017','EB04-002'].includes(card.id)&&turns<=2)value+=12;
+    if(['OP10-011','OP14-031'].includes(card.id)&&own.life.length<=2)value+=15;
+    if(['ST31-004','OP13-118','EB04-007'].includes(card.id)&&foe.life.length<=2)value+=18;
+    if(Number(card.cost||0)<=Math.max(1,own.don.total+2))value+=7;
+    if(card.id==='ST21-003'&&foe.life.length>1)value+=8;
+  }else{
+    if(card.id==='OP09-099'&&!own.stage)value+=16;
+    if(['OP09-096','OP16-103','OP16-109','OP16-110'].includes(card.id)&&turns<=3)value+=12;
+    if(card.id==='OP16-109'&&foe.field.some(target=>Number(target.cost||0)<=1))value+=15;
+    if(card.id==='EB04-058'&&own.life.length<=2)value+=18;
+    if(['OP16-119','OP09-093','OP16-116'].includes(card.id)&&own.don.total>=7)value+=16;
+    if(Number(card.cost||0)<=Math.max(1,own.don.total+2))value+=6;
+  }
+  const copies=own.hand.filter(item=>item.id===card.id).length;
+  return value-copies*4;
+};
+const previousAiSearchPlay351=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousAiSearchPlay351.call(this,side,uid);
+  if(!result||side!=='ai')return result;
+  const pending=this.state.pending;
+  if(pending?.kind==='luffyNamiSearch'&&pending.side==='ai'){
+    const chosen=pending.cards.filter(card=>pending.options.includes(card.uid)).sort((a,b)=>aiSearchValue351(this.state,b)-aiSearchValue351(this.state,a))[0];
+    this.resolveLuffyNamiSearch('ai',chosen?.uid||null);
+  }else if(pending?.kind==='teachSearch3Choice'&&pending.side==='ai'){
+    const own=this.state.sides.ai;
+    const chosen=(pending.cards||[]).filter(card=>card.id!=='OP09-096'&&(card.traits||[]).includes('黒ひげ海賊団')).sort((a,b)=>aiSearchValue351(this.state,b)-aiSearchValue351(this.state,a))[0];
+    if(chosen){own.hand.push(chosen);this.log(chosen.name+'をサーチで手札に加えた')}
+    own.trash.push(...(pending.cards||[]).filter(card=>card.uid!==chosen?.uid));
+    this.state.pending=null;this.state.phase='main';
+  }else if(['OP01-016','EB02-017','EB04-002'].includes(source?.id)&&!pending){
+    const look=source.id==='EB04-002'?4:5,cards=own.deck.splice(Math.max(0,own.deck.length-look));
+    const valid=cards.filter(card=>source.id==='EB04-002'?(card.name!=='ジュエリー・ボニー'&&(card.traits||[]).some(trait=>['エッグヘッド','Egghead','麦わらの一味'].includes(trait))):(card.name!=='ナミ'&&(card.traits||[]).includes('麦わらの一味')));
+    const chosen=valid.sort((a,b)=>aiSearchValue351(this.state,b)-aiSearchValue351(this.state,a))[0];
+    if(chosen){own.hand.push(chosen);this.log(chosen.name+'をサーチで手札に加えた')}
+    own.deck.unshift(...cards.filter(card=>card.uid!==chosen?.uid));
+  }
+  return result;
 };
