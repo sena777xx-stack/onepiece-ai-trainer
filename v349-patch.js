@@ -1421,7 +1421,7 @@ GameEngine.prototype.playCard=async function(side,uid){
       .sort((a,b)=>((b.power||0)+(b.tempPower||0))-((a.power||0)+(a.tempPower||0))).slice(0,2);
     if(!targets.length){this.log(source.name+'：対象がないためメイン効果を使用しませんでした');return result}
     own.don.active-=2;own.don.rested+=2;
-    for(const target of targets)target.preventNextActive=true;
+    for(const target of targets)markOP13040RefreshLock349(target);
     this.log(source.name+'：'+targets.map(card=>card.name).join('、')+'を次のリフレッシュでアクティブ不可にした');
     return result;
   }
@@ -1446,7 +1446,7 @@ GameEngine.prototype.resolveOP13040MainChoice=function(side,targetUids=[],use=tr
     .filter(uid=>pending.options.includes(uid)).slice(0,2);
   const targets=chosen.map(uid=>foe.field.find(card=>card.uid===uid&&card.rested&&this.effectiveCost(foeSide,card)<=7)).filter(Boolean);
   own.don.active-=2;own.don.rested+=2;
-  for(const target of targets)target.preventNextActive=true;
+  for(const target of targets)markOP13040RefreshLock349(target);
   this.log(pending.sourceName+'：'+(targets.length?targets.map(card=>card.name).join('、'):'対象なし')+'を次のリフレッシュでアクティブ不可にした');
   this.state.pending=null;this.state.phase='main';return true;
 };
