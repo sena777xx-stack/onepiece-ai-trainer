@@ -815,3 +815,154 @@ GameEngine.prototype.resolveTrigger=async function(use){
   this.log('ダブルアタックの2ダメージ目：ライフから'+lifeCard.name+'を公開');
   return true;
 };
+
+
+/* OP15-032 Brook: on play rest up to 1 opposing card; Activate: Main —
+   trash this Character to set up to 1 own base-cost-8-or-less Character active. */
+const previousOP15032Play349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousOP15032Play349.call(this,side,uid);
+  if(!result||source?.id!=='OP15-032')return result;
+  const foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  const targets=[];
+  if(foe.leader&&!foe.leader.rested)targets.push(foe.leader);
+  for(const card of foe.field)if(!card.rested)targets.push(card);
+  if(foe.stage&&!foe.stage.rested)targets.push(foe.stage);
+  if(!targets.length){
+    this.log(source.name+'の登場時：レストにできる相手のカードがありません');
+    return result;
+  }
+  if(side==='ai'){
+    const blockers=targets.filter(card=>card.type==='character'&&(card.keywords||[]).includes('blocker'));
+    const characters=targets.filter(card=>card.type==='character');
+    const target=(blockers.length?blockers:characters.length?characters:targets)
+      .sort((a,b)=>((b.cost||0)-(a.cost||0))||((b.power||0)-(a.power||0)))[0];
+    target.rested=true;
+    this.log(source.name+'の登場時：'+target.name+'をレストにした');
+    return result;
+  }
+  this.state.pending={kind:'op15032RestChoice',side,sourceName:source.name,options:targets.map(card=>card.uid)};
+  this.state.phase='effectChoice';
+  this.log(source.name+'の登場時：レストにする相手のカードを1枚まで選択');
+  return result;
+};
+
+GameEngine.prototype.resolveOP15032RestChoice=function(side,targetUid=null){
+  const pending=this.state.pending;
+  if(pending?.kind!=='op15032RestChoice'||pending.side!==side)return false;
+  const foe=this.state.sides[side==='player'?'ai':'player'];
+  const target=[foe.leader,...foe.field,foe.stage].filter(Boolean)
+    .find(card=>card.uid===targetUid&&pending.options.includes(card.uid));
+  if(target&&!target.rested){
+    target.rested=true;
+    this.log(pending.sourceName+'の登場時：'+target.name+'をレストにした');
+  }else this.log(pending.sourceName+'の効果で対象を選びませんでした');
+  this.state.pending=null;
+  this.state.phase='main';
+  return true;
+};
+
+GameEngine.prototype.beginOP15032Main=function(side,sourceUid){
+  const own=this.state.sides[side],source=own.field.find(card=>card.uid===sourceUid&&card.id==='OP15-032');
+  const leaderTraits=own.leader?.traits||[];
+  if(!source||this.state.activeSide!==side||this.state.phase!=='main'||this.state.pending||!leaderTraits.includes('麦わらの一味'))return false;
+  const options=own.field.filter(card=>card.uid!==sourceUid&&card.rested&&Number(card.baseCost??card.cost??0)<=8).map(card=>card.uid);
+  if(!options.length){
+    this.log(source.name+'：アクティブにできるコスト8以下の自分のキャラがいません');
+    return false;
+  }
+  this.snapshot();
+  own.field=own.field.filter(card=>card.uid!==sourceUid);
+  if(source.attachedDon){
+    own.don.rested+=source.attachedDon;
+    source.attachedDon=0;
+  }
+  own.trash.push(source);
+  this.state.pending={kind:'op15032ActiveChoice',side,sourceName:source.name,options};
+  this.state.phase='effectChoice';
+  this.log(source.name+'をトラッシュへ送り、アクティブにする自分のキャラを選択');
+  return true;
+};
+
+GameEngine.prototype.resolveOP15032ActiveChoice=function(side,targetUid=null){
+  const pending=this.state.pending;
+  if(pending?.kind!=='op15032ActiveChoice'||pending.side!==side)return false;
+  const own=this.state.sides[side],target=own.field.find(card=>card.uid===targetUid&&pending.options.includes(card.uid));
+  if(target&&target.rested&&Number(target.baseCost??target.cost??0)<=8){
+    target.rested=false;
+    this.log(pending.sourceName+'の起動メイン：'+target.name+'をアクティブにした');
+  }else this.log(pending.sourceName+'の起動メインで対象を選びませんでした');
+  this.state.pending=null;
+  this.state.phase='main';
+  return true;
+};
+
+const previousOP15032ShowCard349=UI.prototype.showCard;
+UI.prototype.showCard=function(side,card,g){
+  previousOP15032ShowCard349.call(this,side,card,g);
+  const own=g.sides.player;
+  const canUse=side==='player'&&card.id==='OP15-032'&&own.field.some(item=>item.uid===card.uid)&&g.activeSide==='player'&&g.phase==='main'&&!g.pending&&(own.leader?.traits||[]).includes('麦わらの一味')&&own.field.some(item=>item.uid!==card.uid&&item.rested&&Number(item.baseCost??item.cost??0)<=8);
+  if(!canUse)return;
+  const actions=this.modal?.querySelector('.actions');if(!actions)return;
+  const button=document.createElement('button');button.className='primary';button.textContent='起動メインを使う';
+  button.addEventListener('click',()=>{this.close();const engineRef=window.__luffyEngine349;if(engineRef?.beginOP15032Main('player',card.uid))this.renderGame(engineRef.state)});
+  actions.prepend(button);
+};
+
+const previousOP15032Render349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  previousOP15032Render349.call(this,g);
+  const pending=g.pending,engineRef=window.__luffyEngine349;
+  if(!pending||pending.side!=='player'||(pending.kind!=='op15032RestChoice'&&pending.kind!=='op15032ActiveChoice'))return;
+  this.close();
+  const isRest=pending.kind==='op15032RestChoice';
+  const sideState=isRest?g.sides.ai:g.sides.player;
+  const candidates=isRest?[sideState.leader,...sideState.field,sideState.stage].filter(Boolean):sideState.field;
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>'+(isRest?'登場時効果':'起動メイン')+'</small><h2>OP15-032 ブルック：対象を選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');
+  help.textContent=isRest?'相手のアクティブのカード1枚までをレストにします。':'自分のレストの、元々のコスト8以下のキャラ1枚までをアクティブにします。';
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  for(const uid of pending.options){
+    const card=candidates.find(item=>item.uid===uid);if(!card)continue;
+    const button=document.createElement('button');button.dataset.id=card.uid;
+    if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name;button.append(image)}
+    const name=document.createElement('strong');
+    name.textContent=card===sideState.leader?'リーダー：'+card.name:card===sideState.stage?'ステージ：'+card.name:card.name;
+    button.append(name);
+    const note=document.createElement('small');
+    note.textContent=card.type==='character'?'コスト '+card.cost+' / パワー '+((card.power||0)+(card.tempPower||0)):(card===sideState.leader?'リーダー':'ステージ');
+    button.append(note);
+    button.addEventListener('click',()=>{this.close();if(isRest)engineRef?.resolveOP15032RestChoice('player',card.uid);else engineRef?.resolveOP15032ActiveChoice('player',card.uid);this.renderGame(engineRef.state)});
+    grid.append(button);
+  }
+  body.append(help,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer single';
+  const skip=document.createElement('button');skip.textContent='選ばず終了';
+  skip.addEventListener('click',()=>{this.close();if(isRest)engineRef?.resolveOP15032RestChoice('player',null);else engineRef?.resolveOP15032ActiveChoice('player',null);this.renderGame(engineRef.state)});
+  foot.append(skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
+
+const previousOP15032EndTurn349=GameEngine.prototype.endTurn;
+GameEngine.prototype.endTurn=async function(side){
+  if(side==='ai'&&this.state.activeSide===side&&this.state.phase==='main'&&!this.state.pending){
+    const own=this.state.sides.ai,traits=own.leader?.traits||[];
+    if(traits.includes('麦わらの一味')){
+      for(const brook of [...own.field].filter(card=>card.id==='OP15-032')){
+        const target=own.field.filter(card=>card.uid!==brook.uid&&card.rested&&Number(card.baseCost??card.cost??0)<=8)
+          .sort((a,b)=>(((b.power||0)+(b.tempPower||0))-((a.power||0)+(a.tempPower||0)))||((b.cost||0)-(a.cost||0)))[0];
+        if(!target)continue;
+        own.field=own.field.filter(card=>card.uid!==brook.uid);
+        if(brook.attachedDon){own.don.rested+=brook.attachedDon;brook.attachedDon=0}
+        own.trash.push(brook);
+        target.rested=false;
+        this.log(brook.name+'の起動メイン：自身をトラッシュへ送り、'+target.name+'をアクティブにした');
+      }
+    }
+  }
+  return previousOP15032EndTurn349.call(this,side);
+};
