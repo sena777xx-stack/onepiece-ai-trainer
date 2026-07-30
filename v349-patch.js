@@ -1905,7 +1905,7 @@ GameEngine.prototype.resolveOP08036TriggerChoice=function(side,targetUid=null){
   const target=foe.field.find(card=>card.uid===targetUid&&pending.options.includes(card.uid));
   if(target){target.rested=true;this.log('エレクトリカルルナのトリガー：'+target.name+'をレストにした')}
   else this.log('エレクトリカルルナのトリガー：対象を選びませんでした');
-  this.state.pending=null;this.state.phase='main';return true;
+  return this.endBattle();
 };
 const previousOP08036Start349=GameEngine.prototype.start;
 GameEngine.prototype.start=function(...args){const result=previousOP08036Start349.apply(this,args);syncOP08036Runtime349(this.state);return result};
