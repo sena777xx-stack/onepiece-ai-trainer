@@ -267,6 +267,25 @@ const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
   }
   return evaluated.sort((a,b)=>b.score-a.score||playScore(g,b.card)-playScore(g,a.card)||String(a.card.id).localeCompare(String(b.card.id))||String(a.card.uid).localeCompare(String(b.card.uid)))[0]?.card||null;
 };
+const teachSearchPriority=(g,card)=>{
+  const own=g.sides.ai,foe=g.sides.player,turns=g.turnsTaken?.ai||0;
+  let score=playScore(g,card)+Number(card.counter||0)/250;
+  if(card.id==='OP09-099'&&!own.stage)score+=45;
+  if(['OP16-103','OP16-109','OP16-110'].includes(card.id)&&turns<=3)score+=30;
+  if(card.id==='OP16-109'&&foe.field.some(target=>engineCost(g,'player',target)<=1))score+=45;
+  if(card.id==='EB04-058'&&own.life.length<=2)score+=55;
+  if(['OP16-119','OP09-093','OP16-116'].includes(card.id)&&own.don.total>=7)score+=50;
+  score-=own.hand.filter(item=>item.id===card.id).length*14;
+  return score;
+};
+const teachDiscardPenalty=(g,card)=>{
+  const own=g.sides.ai;
+  let penalty=Number(card.counter||0)/180+Math.max(0,playScore(g,card))*.18;
+  if((card.effects||[]).some(effect=>effect.timing==='trigger'))penalty+=12;
+  if(['OP09-093','OP16-119','OP16-116','EB04-058'].includes(card.id))penalty+=20;
+  penalty-=Math.max(0,own.hand.filter(item=>item.id===card.id).length-1)*16;
+  return penalty;
+};
 const chooseBestAttack=async(engine,attempted)=>{
   const g=engine.state,own=g.sides.ai,foe=g.sides.player;
   const targets=attackTargets(g,'ai').filter(target=>target.kind==='leader'||foe.field.find(card=>card.uid===target.uid)?.rested);
@@ -303,6 +322,20 @@ const chooseBestAttack=async(engine,attempted)=>{
   return choices.sort((a,b)=>b.score-a.score||battlePower(b.attacker)-battlePower(a.attacker)||String(a.attacker.id).localeCompare(String(b.attacker.id))||String(a.target.uid).localeCompare(String(b.target.uid)))[0]||null;
 };
 export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;
+if(!attempted.has('__hachinosu__')){
+  attempted.add('__hachinosu__');
+  const own=g.sides.ai,stage=own.stage;
+  if(stage?.id==='OP09-099'&&!stage.rested&&own.deck.length>=3&&own.hand.length>=4&&typeof engine.beginHachinosu==='function'){
+    const discard=own.hand.slice().sort((a,b)=>teachDiscardPenalty(g,a)-teachDiscardPenalty(g,b)||String(a.id).localeCompare(String(b.id)))[0];
+    const started=discard&&engine.beginHachinosu('ai',discard.uid);
+    if(started?.cards){
+      const chosen=started.cards.filter(card=>(card.traits||[]).includes('黒ひげ海賊団')).sort((a,b)=>teachSearchPriority(g,b)-teachSearchPriority(g,a))[0];
+      engine.finishHachinosu('ai',chosen?.uid||null);
+      await show('ハチノスで不要札を入れ替え、必要なカードを探します');
+      continue;
+    }
+  }
+}
 const hasUnattacked=[g.sides.ai.leader,...g.sides.ai.field].some(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
 const p=await chooseBestPlay(engine,attempted,hasUnattacked);
 if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);
