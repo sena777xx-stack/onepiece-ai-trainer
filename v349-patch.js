@@ -1841,3 +1841,104 @@ UI.prototype.effectTargets=function(title,items){
   const close=document.createElement('button');close.textContent='閉じる';close.addEventListener('click',()=>this.close());foot.append(close);
   panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
 };
+
+
+/* OP08-036 エレクトリカルルナ
+   Main: all opposing rested cost-7-or-less Characters stay rested through
+   their next refresh. Trigger: rest up to one opposing Character. */
+function syncOP08036Runtime349(state){
+  if(!state?.sides)return;
+  const all=[];
+  for(const sideName of ['player','ai']){
+    const side=state.sides[sideName];if(!side)continue;
+    if(side.leader)all.push(side.leader);
+    if(side.stage)all.push(side.stage);
+    for(const zone of ['deck','hand','life','field','trash'])if(Array.isArray(side[zone]))all.push(...side[zone]);
+  }
+  if(state.pending?.card)all.push(state.pending.card);
+  for(const card of all){
+    if(card?.id!=='OP08-036')continue;
+    card.name='エレクトリカルルナ';
+    card.type='event';card.color=['green'];card.cost=3;card.power=0;card.counter=0;
+    card.traits=['ミンク族'];
+    card.text='【メイン】相手のレストのコスト7以下のキャラすべては、次の相手のリフレッシュフェイズでアクティブにならない。【トリガー】相手のキャラ1枚までを、レストにする。';
+    card.effects=[{timing:'trigger',action:'op08036Trigger'}];
+    card.keywords=['main','trigger'];
+  }
+}
+const previousOP08036Play349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  syncOP08036Runtime349(this.state);
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousOP08036Play349.call(this,side,uid);
+  if(!result||source?.id!=='OP08-036')return result;
+  const foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  const targets=foe.field.filter(card=>card.rested&&this.effectiveCost(foeSide,card)<=7);
+  for(const target of targets)markOP13040RefreshLock349(target);
+  this.log(source.name+'：'+(targets.length?targets.map(card=>card.name).join('、'):'対象なし')+'を次のリフレッシュでアクティブ不可にした');
+  return result;
+};
+const previousOP08036Trigger349=GameEngine.prototype.resolveTrigger;
+GameEngine.prototype.resolveTrigger=async function(use){
+  syncOP08036Runtime349(this.state);
+  const pending=this.state.pending;
+  if(use&&['trigger','lifeReveal'].includes(pending?.kind)&&pending.card?.id==='OP08-036'){
+    const side=pending.side,own=this.state.sides[side],foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+    own.trash.push(pending.card);
+    if(side==='ai'){
+      const target=[...foe.field].filter(card=>!card.rested).sort((a,b)=>((b.power||0)+(b.tempPower||0))-((a.power||0)+(a.tempPower||0)))[0];
+      if(target){target.rested=true;this.log('エレクトリカルルナのトリガー：'+target.name+'をレストにした')}
+      else this.log('エレクトリカルルナのトリガー：対象なし');
+      return this.endBattle();
+    }
+    this.state.pending={kind:'op08036TriggerChoice',side,options:foe.field.map(card=>card.uid)};
+    this.state.phase='effectChoice';
+    this.log('エレクトリカルルナのトリガー：レストにする相手キャラを選択');
+    return true;
+  }
+  return previousOP08036Trigger349.call(this,use);
+};
+GameEngine.prototype.resolveOP08036TriggerChoice=function(side,targetUid=null){
+  const pending=this.state.pending;
+  if(pending?.kind!=='op08036TriggerChoice'||pending.side!==side)return false;
+  const foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  const target=foe.field.find(card=>card.uid===targetUid&&pending.options.includes(card.uid));
+  if(target){target.rested=true;this.log('エレクトリカルルナのトリガー：'+target.name+'をレストにした')}
+  else this.log('エレクトリカルルナのトリガー：対象を選びませんでした');
+  this.state.pending=null;this.state.phase='main';return true;
+};
+const previousOP08036Start349=GameEngine.prototype.start;
+GameEngine.prototype.start=function(...args){const result=previousOP08036Start349.apply(this,args);syncOP08036Runtime349(this.state);return result};
+const previousOP08036Load349=GameEngine.prototype.load;
+GameEngine.prototype.load=function(saved){const result=previousOP08036Load349.call(this,saved);syncOP08036Runtime349(this.state);return result};
+
+const previousOP08036Render349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  syncOP08036Runtime349(g);
+  previousOP08036Render349.call(this,g);
+  const pending=g.pending,engineRef=window.__luffyEngine349;
+  if(pending?.kind!=='op08036TriggerChoice'||pending.side!=='player')return;
+  this.close();
+  const foe=g.sides.ai;
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>トリガー効果</small><h2>エレクトリカルルナ：対象を選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');help.textContent='相手のキャラ1枚までをレストにします。画像をタップして選択してください。';
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  for(const uid of pending.options){
+    const card=foe.field.find(item=>item.uid===uid);if(!card)continue;
+    const button=document.createElement('button');button.dataset.id=card.uid;
+    if(card.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name+'のカード画像';image.loading='eager';button.append(image)}
+    const name=document.createElement('strong');name.textContent=card.name;button.append(name);
+    const note=document.createElement('small');note.textContent='コスト '+engineRef.effectiveCost('ai',card)+' / パワー '+((card.power||0)+(card.tempPower||0));button.append(note);
+    button.addEventListener('click',()=>{this.close();engineRef?.resolveOP08036TriggerChoice('player',card.uid);this.renderGame(engineRef.state);window.__resumeAi349?.()});
+    grid.append(button);
+  }
+  body.append(help,grid);
+  const foot=document.createElement('div');foot.className='redirect-footer single';
+  const skip=document.createElement('button');skip.textContent='選ばず終了';
+  skip.addEventListener('click',()=>{this.close();engineRef?.resolveOP08036TriggerChoice('player',null);this.renderGame(engineRef.state);window.__resumeAi349?.()});
+  foot.append(skip);panel.append(head,body,foot);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
