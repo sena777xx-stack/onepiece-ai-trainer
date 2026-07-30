@@ -108,6 +108,24 @@ const cloneForLookahead=engine=>{
   shadow.history=[];
   return shadow;
 };
+const matchupPlayBonus=(g,card)=>{
+  const own=g.sides.ai,foe=g.sides.player,ownId=own.leader?.id,foeId=foe.leader?.id,second=g.firstPlayer!=='ai';let bonus=0;
+  if(ownId==='OP13-001'&&foeId==='OP13-001'){
+    if(['OP10-011','OP14-031'].includes(card.id))bonus+=second?24:14;
+    if(['OP01-016','EB02-017','EB04-002'].includes(card.id)&&second)bonus+=10;
+    if(['OP13-118','ST31-004','EB04-007'].includes(card.id))bonus+=second?8:16;
+  }else if(ownId==='OP13-001'&&foeId==='OP16-080'){
+    if(['OP13-118','ST31-004','EB04-007'].includes(card.id))bonus+=18;
+    if(['OP10-011','OP14-031'].includes(card.id))bonus+=second?16:8;
+  }else if(ownId==='OP16-080'&&foeId==='OP16-080'){
+    if(card.id==='OP09-093')bonus+=30;if(card.id==='OP16-119')bonus+=16;if(card.id==='EB04-058')bonus+=second?22:12;
+    if(['OP16-103','OP16-109','OP16-110','OP09-096'].includes(card.id))bonus+=second?12:7;
+  }else if(ownId==='OP16-080'&&foeId==='OP13-001'){
+    if(card.id==='OP09-093')bonus+=34;if(card.id==='EB04-058')bonus+=second?26:16;
+    if(['OP16-103','OP16-109','OP16-110','OP09-096'].includes(card.id))bonus+=second?14:8;
+  }
+  return bonus;
+};
 const chooseBestPlay=async(engine,attempted)=>{
   const g=engine.state,candidates=g.sides.ai.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card));
   const evaluated=[];
@@ -116,7 +134,7 @@ const chooseBestPlay=async(engine,attempted)=>{
     let success=false;
     try{success=Boolean(await shadow.playCard('ai',card.uid))}catch{}
     if(!success){evaluated.push({card,score:-1e9});continue}
-    let score=positionScore(shadow.state)+playScore(g,card)*.08;
+    let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card);
     if(shadow.state.pending?.side==='ai')score-=18;
     if(shadow.state.winner==='ai')score+=10000;
     if(shadow.state.winner==='player')score-=10000;
