@@ -2066,3 +2066,90 @@ UI.prototype.defense=function(g,...args){
   if(receive){receive.hidden=false;receive.disabled=false}
   return result;
 };
+
+
+/* Choose how many DON!! to activate when two or more end-of-turn
+   activation effects are waiting (OP14-022, OP13-027, OP14-031). */
+const previousSelectableEndTurn349=GameEngine.prototype.endTurn;
+GameEngine.prototype.endTurn=async function(side){
+  const canChoose=side==='player'&&this.state.activeSide===side&&this.state.phase==='main'&&!this.state.pending&&!this.state.opEndTurnDonChoiceResolving349;
+  if(canChoose){
+    const own=this.state.sides[side],traits=own.leader.traits||[],validLeader=traits.includes('FILM')||traits.includes('麦わらの一味'),queue=[];
+    if(validLeader){
+      for(const card of own.field){
+        if(card.id==='OP14-022')queue.push({id:card.id,uid:card.uid,name:card.name,max:2,imageUrl:card.imageUrl||''});
+        if(card.id==='OP13-027')queue.push({id:card.id,uid:card.uid,name:card.name,max:1,imageUrl:card.imageUrl||''});
+      }
+    }
+    const namiCount=this.state.op14031EndTurn?.[side]||0;
+    const namiCard=own.field.find(card=>card.id==='OP14-031');
+    for(let index=0;index<namiCount;index++)queue.push({id:'OP14-031',uid:namiCard?.uid||'',name:'ナミ',max:5,imageUrl:namiCard?.imageUrl||''});
+    if(queue.length>=2){
+      this.snapshot();
+      this.state.pending={kind:'endTurnDonCountChoice',side,queue,index:0};
+      this.state.phase='effectChoice';
+      this.log('ターン終了時：'+queue.length+'件のDON!!アクティブ効果を順番に処理');
+      return true;
+    }
+  }
+  return previousSelectableEndTurn349.call(this,side);
+};
+GameEngine.prototype.resolveEndTurnDonCountChoice349=async function(side,amount=0){
+  const pending=this.state.pending;
+  if(pending?.kind!=='endTurnDonCountChoice'||pending.side!==side)return false;
+  const own=this.state.sides[side],item=pending.queue[pending.index];
+  if(!item)return false;
+  const chosen=Math.max(0,Math.min(Number(amount)||0,item.max,own.don.rested));
+  own.don.rested-=chosen;own.don.active+=chosen;
+  this.log(item.name+'のターン終了時：DON!!を'+chosen+'枚アクティブにした');
+  pending.index+=1;
+  if(pending.index<pending.queue.length)return true;
+
+  const masked=[];
+  for(const card of own.field){
+    if(card.id==='OP14-022'||card.id==='OP13-027'){masked.push([card,card.id]);card.id='__END_TURN_RESOLVED__'}
+  }
+  const savedNamiCount=this.state.op14031EndTurn?.[side]||0;
+  if(this.state.op14031EndTurn)this.state.op14031EndTurn[side]=0;
+  this.state.pending=null;this.state.phase='main';this.state.opEndTurnDonChoiceResolving349=true;
+  try{return await previousSelectableEndTurn349.call(this,side)}
+  finally{
+    for(const [card,id] of masked)card.id=id;
+    if(this.state.op14031EndTurn&&this.state.activeSide===side)this.state.op14031EndTurn[side]=savedNamiCount;
+    this.state.opEndTurnDonChoiceResolving349=false;
+  }
+};
+
+const previousSelectableEndTurnRender349=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  previousSelectableEndTurnRender349.call(this,g);
+  const pending=g.pending,engineRef=window.__luffyEngine349;
+  if(pending?.kind!=='endTurnDonCountChoice'||pending.side!=='player')return;
+  this.close();
+  const own=g.sides.player,item=pending.queue[pending.index],limit=Math.min(item.max,own.don.rested);
+  const overlay=document.createElement('div');overlay.className='dialog';
+  const panel=document.createElement('section');panel.className='redirect-flow';
+  const head=document.createElement('div');head.className='redirect-head';
+  head.innerHTML='<small>ターン終了時 '+(pending.index+1)+' / '+pending.queue.length+'</small><h2>'+item.name+'：DON!!枚数を選択</h2>';
+  const body=document.createElement('div');body.className='redirect-body';
+  const help=document.createElement('p');help.textContent='レストのDON!!から、アクティブにする枚数を選んでください。現在のレストDON!!：'+own.don.rested+'枚';
+  if(item.imageUrl){
+    const preview=document.createElement('div');preview.style.cssText='display:flex;justify-content:center;margin:8px 0 14px';
+    const image=document.createElement('img');image.src=item.imageUrl;image.alt=item.name+'のカード画像';image.style.cssText='width:min(38vw,150px);height:auto;max-height:30dvh;object-fit:contain;border-radius:8px';preview.append(image);body.append(help,preview);
+  }else body.append(help);
+  const grid=document.createElement('div');grid.className='effect-target-grid';
+  for(let amount=0;amount<=limit;amount++){
+    const button=document.createElement('button');
+    const strong=document.createElement('strong');strong.textContent=amount+'枚';
+    const note=document.createElement('small');note.textContent=amount?'DON!!を'+amount+'枚アクティブにする':'アクティブにしない';
+    button.append(strong,note);
+    button.addEventListener('click',async()=>{
+      this.close();
+      await engineRef?.resolveEndTurnDonCountChoice349('player',amount);
+      this.renderGame(engineRef.state);
+      if(!engineRef.state.pending&&engineRef.state.activeSide==='ai')window.__resumeAi349?.();
+    });
+    grid.append(button);
+  }
+  body.append(grid);panel.append(head,body);overlay.append(panel);this.modal=overlay;document.body.append(overlay);
+};
