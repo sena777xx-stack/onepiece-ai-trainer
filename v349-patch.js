@@ -2072,7 +2072,7 @@ UI.prototype.defense=function(g,...args){
    activation effects are waiting (OP14-022, OP13-027, OP14-031). */
 const previousSelectableEndTurn349=GameEngine.prototype.endTurn;
 GameEngine.prototype.endTurn=async function(side){
-  const canChoose=side==='player'&&this.state.activeSide===side&&this.state.phase==='main'&&!this.state.pending&&!this.state.opEndTurnDonChoiceResolving349;
+  const canChoose=side==='player'&&this.state.activeSide===side&&!this.state.pending&&!this.state.opEndTurnDonChoiceResolving349;
   if(canChoose){
     const own=this.state.sides[side],traits=own.leader.traits||[],validLeader=traits.includes('FILM')||traits.includes('麦わらの一味'),queue=[];
     if(validLeader){
@@ -2084,7 +2084,7 @@ GameEngine.prototype.endTurn=async function(side){
     const namiCount=this.state.op14031EndTurn?.[side]||0;
     const namiCard=own.field.find(card=>card.id==='OP14-031');
     for(let index=0;index<namiCount;index++)queue.push({id:'OP14-031',uid:namiCard?.uid||'',name:'ナミ',max:5,imageUrl:namiCard?.imageUrl||''});
-    if(queue.length>=2){
+    if(queue.length>=1){
       this.snapshot();
       this.state.pending={kind:'endTurnDonCountChoice',side,queue,index:0};
       this.state.phase='effectChoice';
