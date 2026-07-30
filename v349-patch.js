@@ -725,3 +725,36 @@ UI.prototype.renderGame=function(g){
   });
   footer.prepend(handButton);
 };
+
+
+/* OP13-027 Sanji: activate up to 2 DON!! on play and up to 1 DON!!
+   at the end of its controller's turn with a FILM/Straw Hat Crew Leader. */
+const previousOP13027Play349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousOP13027Play349.call(this,side,uid);
+  if(!result||source?.id!=='OP13-027')return result;
+  const own=this.state.sides[side],amount=Math.min(2,own.don.rested);
+  own.don.rested-=amount;
+  own.don.active+=amount;
+  this.log(source.name+'の登場時：DON!!を'+amount+'枚アクティブにした');
+  return result;
+};
+
+const previousOP13027EndTurn349=GameEngine.prototype.endTurn;
+GameEngine.prototype.endTurn=async function(side){
+  const canEnd=this.state.activeSide===side&&this.state.phase==='main'&&!this.state.pending;
+  if(canEnd){
+    const own=this.state.sides[side],traits=own.leader.traits||[];
+    if(traits.includes('FILM')||traits.includes('麦わらの一味')){
+      for(const card of own.field){
+        if(card.id!=='OP13-027')continue;
+        const amount=Math.min(1,own.don.rested);
+        own.don.rested-=amount;
+        own.don.active+=amount;
+        this.log(card.name+'のターン終了時：DON!!を'+amount+'枚アクティブにした');
+      }
+    }
+  }
+  return previousOP13027EndTurn349.call(this,side);
+};
