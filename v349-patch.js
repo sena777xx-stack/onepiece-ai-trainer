@@ -2645,3 +2645,43 @@ UI.prototype.renderHome=function(...args){
   }
   return result;
 };
+
+
+/* teach-search-direct-finish-356
+   Resolve OP09-096 directly from its dialog so no generic UI action can leave
+   the modal open after the pending choice has already been completed. */
+const previousTeachSearchDirectRender356=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  const result=previousTeachSearchDirectRender356.call(this,g);
+  if(g?.pending?.kind!=='teachSearch3Choice'||g.pending.side!=='player'||!this.modal)return result;
+  const engine=window.__luffyEngine349;
+  const footer=this.modal.querySelector('.redirect-footer');
+  if(!engine||!footer||footer.dataset.teachDirect356==='true')return result;
+  footer.dataset.teachDirect356='true';
+  const resolveAndReturn=ids=>{
+    this.close();
+    const resolved=engine.resolveTeachKoChoice('player',ids);
+    if(!resolved&&engine.state.pending?.kind==='teachSearch3Choice'){
+      engine.resolveTeachKoChoice('player',[]);
+    }
+    this.renderGame(engine.state);
+  };
+  for(const original of [...footer.querySelectorAll('button')]){
+    const label=original.textContent.trim();
+    if(label!=='手札に加える'&&label!=='加えない')continue;
+    const button=original.cloneNode(true);
+    button.type='button';
+    button.disabled=false;
+    original.replaceWith(button);
+    if(label==='加えない'){
+      button.addEventListener('click',()=>resolveAndReturn([]));
+    }else{
+      button.addEventListener('click',()=>{
+        const selected=this.modal?.querySelector('.search3-grid button.selected:not([disabled])')
+          ||this.modal?.querySelector('.search3-grid button:not([disabled])');
+        resolveAndReturn(selected?.dataset?.id?[selected.dataset.id]:[]);
+      });
+    }
+  }
+  return result;
+};
