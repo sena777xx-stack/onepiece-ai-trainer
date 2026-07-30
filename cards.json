@@ -924,6 +924,11 @@
         "timing": "trigger",
         "action": "op13040CounterTrigger"
       }
+    ],
+    "keywords": [
+      "main",
+      "counter",
+      "trigger"
     ]
   },
   {
