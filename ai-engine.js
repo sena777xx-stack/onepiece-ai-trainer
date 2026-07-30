@@ -1,7 +1,49 @@
 import{legalPlay,legalAttack,attackTargets,counterOptions,blockers}from'./rule-engine-v3.js?v=3441';const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const battlePower=card=>(card.power||0)+(card.attachedDon||0)*1000+(card.tempPower||0);
 const targetPower=(g,target)=>{const foe=g.sides.player,card=target.kind==='leader'?foe.leader:foe.field.find(c=>c.uid===target.uid);return(card?.power||0)+(card?.tempPower||0)};
-export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;const p=g.sides.ai.hand.filter(c=>legalPlay(g,'ai',c)&&!attempted.has(c.uid)).sort((a,b)=>b.cost-a.cost)[0];if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
+const luffyRestoreIds=new Set(['OP13-037','OP14-022','OP14-031','OP13-027','OP13-118']);
+const usefulMainEvent=(g,card)=>{
+  const own=g.sides.ai,foe=g.sides.player;
+  if(card.id==='OP12-037'){
+    if(own.don.active<(card.cost||0)+3)return false;
+    const activeCharacters=foe.field.filter(target=>!target.rested).length;
+    return activeCharacters+Math.min(2,foe.don.active)>0;
+  }
+  if(card.id==='OP13-040'){
+    if(own.don.active<(card.cost||0)+2)return false;
+    return foe.field.some(target=>target.rested&&engineCost(g,'player',target)<=7);
+  }
+  return card.type!=='event';
+};
+const engineCost=(g,side,card)=>Number(card?.cost||0)+(g.activeSide!==(side)&&g.sides[side]?.leader?.id==='OP16-080'&&card?.type==='character'?1:0);
+const desiredLuffyDefenseDon=g=>{
+  const own=g.sides.ai;
+  if(own.leader?.id!=='OP13-001')return 0;
+  if(own.life.length<=1)return Math.min(5,own.don.active);
+  if(own.life.length<=2)return Math.min(4,own.don.active);
+  return Math.min(3,own.don.active);
+};
+const playScore=(g,card)=>{
+  const own=g.sides.ai,foe=g.sides.player,turns=g.turnsTaken?.ai||0;
+  if(card.type==='stage')return own.stage? -1000:card.id==='ST31-005'?130:55;
+  if(card.id==='OP01-016'||card.id==='EB02-017'||card.id==='EB04-002')return turns<=2?125:78;
+  if(card.id==='OP14-031')return 108+(own.life.length<=2?30:0)+foe.field.filter(c=>!c.rested&&(c.cost||0)<=8).length*8;
+  if(card.id==='OP13-118')return 112+(foe.life.length<=2?25:0);
+  if(card.id==='ST31-004')return 102+([own.leader,...own.field].reduce((n,c)=>n+(c.attachedDon||0),0)>=3?25:0);
+  if(card.id==='OP13-037'||card.id==='OP13-027'||card.id==='OP14-022')return 100;
+  if(card.id==='OP10-011')return 92+(own.life.length<=2?25:0);
+  if(card.id==='ST21-003')return 86;
+  if(card.id==='OP12-037'){
+    const targets=foe.field.filter(c=>!c.rested).length+Math.min(2,foe.don.active);
+    return targets>=2?82:35;
+  }
+  if(card.id==='OP13-040'){
+    const targets=foe.field.filter(c=>c.rested&&engineCost(g,'player',c)<=7).length;
+    return targets>=2?88:60;
+  }
+  return 50+Number(card.cost||0)*5+Number(card.power||0)/1000;
+};
+export async function runAiTurn(engine,speed=500,onStep=()=>{}){let g=engine.state;const pace=Math.max(1000,Number(speed)||500),show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;const p=g.sides.ai.hand.filter(c=>legalPlay(g,'ai',c)&&!attempted.has(c.uid)&&usefulMainEvent(g,c)).sort((a,b)=>playScore(g,b)-playScore(g,a))[0];if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);onStep();await wait(650);if(!played)attempted.add(p.uid);continue}
 if(!attempted.has('__luffy_support__')){
   attempted.add('__luffy_support__');
   const own=g.sides.ai;
@@ -21,8 +63,9 @@ if(!attempted.has('__luffy_support__')){
       if(engine.attachDon('ai',own.leader.uid,1))attached++;
     }
     const attacker=ready.find(card=>card.uid!==own.leader.uid)||ready[0];
-    const rest=own.don.active;
-    if(attacker&&rest>0&&engine.attachDon('ai',attacker.uid,rest))attached+=rest;
+    const reserve=desiredLuffyDefenseDon(g);
+    const spendable=Math.max(0,own.don.active-reserve);
+    if(attacker&&spendable>0&&engine.attachDon('ai',attacker.uid,spendable))attached+=spendable;
     if(attached>0){
       await show('攻撃役へDON!!を'+attached+'枚付与します');
       continue;
