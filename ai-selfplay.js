@@ -50,7 +50,7 @@ const runSide=async(engine,side)=>{
   swapPerspective(engine.state);
 };
 export async function runSelfPlay(cards,deckLeft,deckRight,games=100,onProgress=()=>{},firstMode='alternate'){
-  const count=Math.max(1,Math.min(10000,Number(games)||100));
+  const count=Math.max(1,Math.min(1000,Number(games)||100));
   const mode=['left','right','alternate'].includes(firstMode)?firstMode:'alternate',result={games:count,firstMode:mode,leftWins:0,rightWins:0,draws:0,stalls:0,totalTurns:0,startedAt:Date.now()};
   for(let game=0;game<count;game++){
     const engine=new GameEngine(cards,{player:deckLeft,ai:deckRight}),first=mode==='left'?'player':mode==='right'?'ai':game%2===0?'player':'ai';
