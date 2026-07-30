@@ -2370,7 +2370,8 @@ UI.prototype.targets=function(items){
     if(card?.imageUrl){const image=document.createElement('img');image.src=card.imageUrl;image.alt=card.name||item.name;button.append(image)}
     const name=document.createElement('strong');name.textContent=item.kind==='leader'?('リーダー：'+(card?.name||item.name)):(card?.name||item.name);button.append(name);
     const info=document.createElement('small');
-    const power=Number(card?.power||0)+Number(card?.tempPower||0)+Number(card?.attachedDon||0)*1000;
+    const donPower=engine?.state?.activeSide==='ai'?Number(card?.attachedDon||0)*1000:0;
+    const power=Number(card?.power||0)+Number(card?.tempPower||0)+donPower;
     info.textContent='パワー '+power+(item.kind==='character'?'・レスト':'');
     button.append(info);
     button.addEventListener('click',()=>this.a.target(item.uid));
@@ -2412,5 +2413,21 @@ UI.prototype.lifeRevealPrompt=function(pending){
     foot.append(close);panel.append(head,body,foot);overlay.append(panel);document.body.append(overlay);
   });
   actions.insertBefore(check,actions.firstChild);
+  return result;
+};
+
+
+/* Attached DON!! grants +1000 only during its controller's turn.
+   Recalculate the defending card after every declaration so no wrapper or
+   restored save can carry an opponent-turn DON!! bonus into defense. */
+const previousTurnScopedDonAttack349=GameEngine.prototype.declareAttack;
+GameEngine.prototype.declareAttack=async function(side,attackerId,targetId){
+  const result=await previousTurnScopedDonAttack349.call(this,side,attackerId,targetId);
+  const battle=this.state.pending;
+  if(result&&battle?.kind==='battle'){
+    const defending=this.state.sides[battle.defendingSide];
+    const target=battle.targetKind==='leader'?defending.leader:defending.field.find(card=>card.uid===battle.targetUid);
+    if(target)battle.targetPower=Number(target.power||0)+Number(target.tempPower||0);
+  }
   return result;
 };
