@@ -966,3 +966,81 @@ GameEngine.prototype.endTurn=async function(side){
   }
   return previousOP15032EndTurn349.call(this,side);
 };
+
+
+/* EB04-007 Roronoa Zoro: on play Leader +2000 through the opponent's
+   next End Phase; once per turn gain Rush: Character when a foe has 8000+ power. */
+function eb04007Power349(card){
+  return Number(card?.power||0)+Number(card?.tempPower||0)+Number(card?.burgessPowerBonus||0);
+}
+
+const previousEB04007Play349=GameEngine.prototype.playCard;
+GameEngine.prototype.playCard=async function(side,uid){
+  const source=this.state.sides[side].hand.find(card=>card.uid===uid);
+  const result=await previousEB04007Play349.call(this,side,uid);
+  if(!result||source?.id!=='EB04-007')return result;
+  const leader=this.state.sides[side].leader;
+  leader.tempPower=(leader.tempPower||0)+2000;
+  this.log(source.name+'の登場時：リーダーを次の相手のエンドフェイズ終了時までパワー+2000');
+  return result;
+};
+
+GameEngine.prototype.activateEB04007Rush=function(side,sourceUid){
+  const own=this.state.sides[side],foe=this.state.sides[side==='player'?'ai':'player'];
+  const source=own.field.find(card=>card.uid===sourceUid&&card.id==='EB04-007');
+  if(!source||this.state.activeSide!==side||this.state.phase!=='main'||this.state.pending||source.eb04007RushUsedTurn===this.state.turn)return false;
+  if(!foe.field.some(card=>eb04007Power349(card)>=8000)){
+    this.log(source.name+'：相手にパワー8000以上のキャラがいないため効果を使用できません');
+    return false;
+  }
+  this.snapshot();
+  source.eb04007RushUsedTurn=this.state.turn;
+  source.eb04007RushCharacterThroughTurn=this.state.turn;
+  source.summoningSickness=false;
+  source.keywords=Array.isArray(source.keywords)?source.keywords:[];
+  if(!source.keywords.includes('rush'))source.keywords.push('rush');
+  this.log(source.name+'の起動メイン：このターン中「速攻：キャラ」を得た');
+  return true;
+};
+
+const previousEB04007Attack349=GameEngine.prototype.declareAttack;
+GameEngine.prototype.declareAttack=async function(side,attackerUid,targetUid){
+  const own=this.state.sides[side],foe=this.state.sides[side==='player'?'ai':'player'];
+  const attacker=own.field.find(card=>card.uid===attackerUid);
+  if(attacker?.id==='EB04-007'&&attacker.eb04007RushCharacterThroughTurn===this.state.turn&&targetUid===foe.leader.uid){
+    this.log(attacker.name+'の「速攻：キャラ」では相手リーダーへアタックできません');
+    return false;
+  }
+  return previousEB04007Attack349.call(this,side,attackerUid,targetUid);
+};
+
+const previousEB04007BeginTurn349=GameEngine.prototype.beginTurn;
+GameEngine.prototype.beginTurn=async function(side){
+  const own=this.state?.sides?.[side];
+  if(own){
+    for(const card of own.field){
+      if(card.id==='EB04-007'&&card.eb04007RushCharacterThroughTurn!=null){
+        card.keywords=(card.keywords||[]).filter(keyword=>keyword!=='rush');
+        delete card.eb04007RushCharacterThroughTurn;
+      }
+    }
+  }
+  return previousEB04007BeginTurn349.call(this,side);
+};
+
+const previousEB04007ShowCard349=UI.prototype.showCard;
+UI.prototype.showCard=function(side,card,g){
+  previousEB04007ShowCard349.call(this,side,card,g);
+  const own=g.sides.player,foe=g.sides.ai;
+  const canUse=side==='player'&&card.id==='EB04-007'&&own.field.some(item=>item.uid===card.uid)&&g.activeSide==='player'&&g.phase==='main'&&!g.pending&&card.eb04007RushUsedTurn!==g.turn&&foe.field.some(item=>eb04007Power349(item)>=8000);
+  if(!canUse)return;
+  const actions=this.modal?.querySelector('.actions');if(!actions)return;
+  const button=document.createElement('button');button.className='primary';button.textContent='起動メインを使う';
+  button.addEventListener('click',()=>{
+    this.close();
+    const engineRef=window.__luffyEngine349;
+    engineRef?.activateEB04007Rush('player',card.uid);
+    this.renderGame(engineRef.state);
+  });
+  actions.prepend(button);
+};
