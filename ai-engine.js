@@ -21,7 +21,7 @@ const usefulMainEvent=(g,card)=>{
   }
   if(leader!=='OP13-001')return card.type!=='event';
   if(card.type==='character'){
-    const keepForDefense=Number(card.counter||0)>=2000&&own.life.length<=2&&own.hand.length<=4&&own.field.length>=2;
+    const keepForDefense=Number(card.counter||0)>=2000&&own.life.length<=2&&own.hand.length<=3&&own.field.length>=2;
     if(keepForDefense&&!['OP10-011','OP14-031'].includes(card.id))return false;
     if(['OP01-016','EB02-017','EB04-002'].includes(card.id)&&own.deck.length<5)return false;
     return true;
@@ -59,14 +59,15 @@ const playScore=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player,turns=g.turnsTaken?.ai||0;
   if(card.type==='stage')return own.stage?-1000:(card.id==='OP09-099'?104:card.id==='ST31-005'?130:55);
   if(own.leader?.id==='OP16-080'){
-    if(card.id==='OP09-093')return 190+(foe.field.length*8)+(own.life.length<=2?18:0);
+    if(card.id==='OP09-093')return 170+(foe.field.length*7)+(own.life.length<=2?15:0);
     if(card.id==='OP16-116')return 182+(foe.life.length<=2?24:0);
-    if(card.id==='OP16-119')return 168+(own.life.length<=2?30:0);
+    if(card.id==='OP16-119')return 155+(own.life.length<=2?24:0);
     if(card.id==='EB04-058')return 150+(own.life.length<=2?55:0);
     if(card.id==='EB04-059')return 135+foe.field.filter(target=>engineCost(g,'player',target)<=6).length*14;
-    if(card.id==='OP16-108')return 128+(own.trash.some(target=>(target.traits||[]).includes('黒ひげ海賊団')&&Number(target.cost||0)<=6)?22:0);
+    if(card.id==='OP16-108')return 124+(own.trash.some(target=>(target.traits||[]).includes('黒ひげ海賊団')&&Number(target.cost||0)<=6)?18:0);
     if(card.id==='OP16-115')return 118+own.trash.filter(hasTrigger).length*5;
-    if(card.id==='OP09-096')return turns<=3?142:105;
+    if(card.id==='OP09-096')return turns<=3?154:110;
+    if(['OP16-103','OP16-109','OP16-110'].includes(card.id))return turns<=3?148:88;
     if(card.id==='OP09-086')return 115+Math.min(35,own.trash.length*3);
     if(card.id==='OP16-106')return 108;
     if(card.id==='OP16-104'||card.id==='OP12-112')return own.life.length<=2&&own.hand.length<=5?45:96;
