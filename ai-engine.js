@@ -276,6 +276,17 @@ const preCombatPlayUseful=(g,card)=>{
   if(card.id==='EB04-059')return foe.field.some(target=>!target.rested&&(target.keywords||[]).includes('blocker')&&engineCost(g,'player',target)<=6);
   return false;
 };
+const stableChoiceIndex=(g,cards)=>{
+  const text=[g.turn,g.firstPlayer,g.sides.ai.life.length,g.sides.player.life.length,...g.sides.ai.hand.map(card=>card.id),...g.sides.ai.field.map(card=>card.id),...g.sides.player.field.map(card=>card.id)].join('|');
+  let hash=2166136261;
+  for(let i=0;i<text.length;i++){hash^=text.charCodeAt(i);hash=Math.imul(hash,16777619)}
+  return cards.length?Math.abs(hash) % cards.length:0;
+};
+const inMatchVarietyBonus=(g,card)=>{
+  const played=g._aiPlayedCards?.ai||[],same=played.filter(id=>id===card.id).length;
+  const distinct=new Set(played).size;
+  return -Math.min(18,same*7)+(same===0&&distinct>1?3:0);
+};
 const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
   const g=engine.state,candidates=g.sides.ai.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card));
   const beforeCombat=combatOutlook(g,attempted),evaluated=[];
@@ -288,7 +299,7 @@ const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
     const removedBlocker=afterCombat.activeBlockers<beforeCombat.activeBlockers;
     const tactical=preCombatPlayUseful(g,card)||(!beforeCombat.lethal&&afterCombat.lethal)||removedBlocker||afterCombat.score>=beforeCombat.score+24;
     if(preCombatOnly&&!tactical)continue;
-    let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card)+deckPlanBonus(g,card)+getCardLearningBonus(g,card)+(afterCombat.score-beforeCombat.score)*2;
+    let score=positionScore(shadow.state)+playScore(g,card)*.08+matchupPlayBonus(g,card)+deckPlanBonus(g,card)+getCardLearningBonus(g,card)+inMatchVarietyBonus(g,card)+(afterCombat.score-beforeCombat.score)*2;
     const safetyBefore=opponentTurnRisk(g),safetyAfter=opponentTurnRisk(shadow.state);
     score+=(safetyBefore-safetyAfter)*1.8;
     const defensiveCardCost=Number(card.counter||0)>=2000?(g.sides.ai.life.length<=2?58:22):Number(card.counter||0)/120;
@@ -307,7 +318,12 @@ const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
     if(shadow.state.winner==='player')score-=10000;
     evaluated.push({card,score});
   }
-  return evaluated.sort((a,b)=>b.score-a.score||playScore(g,b.card)-playScore(g,a.card)||String(a.card.id).localeCompare(String(b.card.id))||String(a.card.uid).localeCompare(String(b.card.uid)))[0]?.card||null;
+  const ranked=evaluated.sort((a,b)=>b.score-a.score||playScore(g,b.card)-playScore(g,a.card)||String(a.card.id).localeCompare(String(b.card.id))||String(a.card.uid).localeCompare(String(b.card.uid)));
+  if(!ranked.length)return null;
+  const best=ranked[0],critical=best.score>=1000||beforeCombat.lethal;
+  if(critical)return best.card;
+  const near=ranked.filter(item=>best.score-item.score<=6).slice(0,3);
+  return near[stableChoiceIndex(g,near)]?.card||best.card;
 };
 const teachSearchPriority=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player,turns=g.turnsTaken?.ai||0;
