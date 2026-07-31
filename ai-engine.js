@@ -79,7 +79,11 @@ const desiredLuffyDefenseDon=g=>{
   const hasDance=own.hand.some(card=>card.id==='OP05-038');
   const hasPaidCounter=own.hand.some(card=>['OP12-037','OP13-040'].includes(card.id));
   const eventReserve=hasDance?2:hasPaidCounter?1:0;
-  const leaderReserve=own.life.length<=1?2:1;
+  const incoming=[g.sides.player.leader,...g.sides.player.field].filter(card=>legalAttack(g,'player',card)).length;
+  /* At life 0, retain enough DON!! for several +2000 leader-effect uses,
+     but still leave five DON!! available for board development at 10 DON!!. */
+  const leaderReserve=own.life.length===0?Math.min(5,Math.max(3,incoming))
+    :own.life.length===1?Math.min(4,Math.max(2,incoming)):1;
   return Math.min(own.don.active,Math.max(eventReserve,leaderReserve));
 };
 const playScore=(g,card)=>{
@@ -292,6 +296,13 @@ const preCombatPlayUseful=(g,card)=>{
   const searchers=new Set(['ST31-005','OP01-016','EB02-017','EB04-002','OP09-096']);
   if(searchers.has(card.id)&&own.hand.length<=7)return true;
   if(['OP14-031','OP13-118','ST31-004','EB04-007'].includes(card.id))return true;
+  /* Log-derived correction: with a large hand and open field slots, develop
+     real attackers before converting all remaining DON!! into one attack. */
+  const affordable=card.type==='character'&&Number(card.cost||0)<=Number(own.don.active||0);
+  const lowDefenseCost=Number(card.counter||0)<2000;
+  if(affordable&&lowDefenseCost&&own.field.length<4&&own.hand.length>=6)return true;
+  if(own.leader?.id==='OP13-001'&&own.life.length===0&&affordable&&lowDefenseCost&&['ST31-004','OP14-022','OP13-037','OP13-027','OP15-032','EB04-007'].includes(card.id))return true;
+  if(own.leader?.id==='OP16-080'&&affordable&&lowDefenseCost&&own.field.length<3&&['OP16-103','OP16-108','OP16-109','OP16-110','OP09-086','OP16-119'].includes(card.id))return true;
   if(card.id==='ST21-003')return foe.life.length<=1&&foe.field.some(target=>!target.rested&&(target.keywords||[]).includes('blocker'));
   if(card.id==='OP09-093')return foe.life.length<=1||foe.field.some(target=>(target.effects||[]).length>0&&Number(target.power||0)>=7000);
   if(card.id==='EB04-059')return foe.field.some(target=>!target.rested&&(target.keywords||[]).includes('blocker')&&engineCost(g,'player',target)<=6);
