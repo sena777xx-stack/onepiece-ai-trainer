@@ -153,6 +153,24 @@ const matchupPlayBonus=(g,card)=>{
   }
   return bonus;
 };
+const luffyDonPlanBonus=(g,card)=>{
+  const own=g.sides.ai;
+  if(own.leader?.id!=='OP13-001')return 0;
+  const immediate={ 'OP13-037':2,'OP13-027':2,'OP13-118':4 }[card.id]||0;
+  const endTurn={ 'OP14-022':2,'OP14-031':5,'OP13-027':1 }[card.id]||0;
+  if(!immediate&&!endTurn)return 0;
+  const cost=Math.max(0,Number(card.cost||0));
+  const restedAfterCost=Math.max(0,Number(own.don?.rested||0)+Math.min(cost,Number(own.don?.active||0)));
+  const restoredNow=Math.min(immediate,restedAfterCost);
+  const activeAfter=Math.max(0,Number(own.don?.active||0)-cost+restoredNow);
+  const followUps=own.hand.filter(next=>next.uid!==card.uid&&Number(next.cost||99)<=activeAfter&&next.type!=='event').length;
+  const endValue=Math.min(endTurn,Number(own.don?.total||0))*(own.life.length<=2?15:10);
+  let bonus=restoredNow*24+Math.min(3,followUps)*10+endValue;
+  if(card.id==='OP13-118'&&restoredNow>=3)bonus+=28;
+  if(card.id==='OP14-031'&&own.life.length<=2)bonus+=24;
+  if(restoredNow===0&&endTurn===0)bonus-=20;
+  return bonus;
+};
 const deckPlanBonus=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player,turns=g.turnsTaken?.ai||0;
   const first=g.firstPlayer==='ai',don=Number(own.don?.total||0),foeId=foe.leader?.id;
@@ -160,6 +178,7 @@ const deckPlanBonus=(g,card)=>{
   let bonus=0;
 
   if(own.leader?.id==='OP13-001'){
+    bonus+=luffyDonPlanBonus(g,card);
     if(card.id==='ST31-005'&&!own.stage)bonus+=turns<=2?85:30;
     if(['OP01-016','EB02-017','EB04-002'].includes(card.id))bonus+=turns<=2?55:own.hand.length<=4?32:8;
     if(don>=4&&don<=6&&['OP13-037','OP13-027','OP14-022','OP15-032'].includes(card.id))bonus+=first?26:34;
@@ -486,6 +505,7 @@ const defenseHandKeepValue=card=>{
   if(card.id==='ST21-003')value+=12;
   if(['OP12-112','OP16-104','EB04-002'].includes(card.id))value+=7;
   if(['OP10-011','OP14-031','EB04-058'].includes(card.id))value+=6;
+  if(luffyRestoreIds.has(card.id))value+=5;
   if(Number(card.cost||0)>=7)value+=4;
   return value;
 };
