@@ -363,11 +363,42 @@ const teachDiscardPenalty=(g,card)=>{
   penalty-=Math.max(0,own.hand.filter(item=>item.id===card.id).length-1)*16;
   return penalty;
 };
+const attackOrders=cards=>{
+  if(cards.length<=1)return[cards];
+  const limited=cards.slice(0,6),out=[];
+  const walk=(prefix,rest)=>{
+    if(!rest.length){out.push(prefix);return}
+    for(let i=0;i<rest.length;i++)walk([...prefix,rest[i]],[...rest.slice(0,i),...rest.slice(i+1)]);
+  };
+  walk([],limited);return out;
+};
+const bestLeaderAttackSequence=(g,attackers)=>{
+  const foe=g.sides.player,leaderPower=Number(foe.leader?.power||0)+Number(foe.leader?.tempPower||0);
+  const blockerCount=foe.field.filter(card=>!card.rested&&(card.keywords||[]).includes('blocker')).length;
+  const estimatedStart=Math.max(0,foe.hand.length-1)*900+(foe.life.length<=1?700:0);
+  let best={order:[],win:false,score:-Infinity,remainingLife:foe.life.length};
+  for(const order of attackOrders(attackers)){
+    let life=foe.life.length,counter=estimatedStart,blocks=blockerCount,win=false,used=0,forced=0;
+    for(const attacker of order){
+      used++;
+      const power=battlePower(attacker),required=Math.max(0,power-leaderPower+1000);
+      const doubleAttack=(attacker.keywords||[]).includes('doubleAttack')||(attacker.keywords||[]).includes('double attack');
+      const shouldBlock=blocks>0&&(doubleAttack||power>=leaderPower+2000||life<=1);
+      if(shouldBlock){blocks--;continue}
+      if(counter>=required&&required>0){counter-=required;forced+=required;continue}
+      if(life===0){win=true;break}
+      life=Math.max(0,life-(doubleAttack?2:1));
+    }
+    const score=(win?10000:0)+(foe.life.length-life)*420+forced/120+Math.max(0,estimatedStart-counter)/180-blocks*35-used*(win?8:0);
+    if(score>best.score)best={order,win,score,remainingLife:life};
+  }
+  return best;
+};
 const chooseBestAttack=async(engine,attempted)=>{
   const g=engine.state,own=g.sides.ai,foe=g.sides.player;
   const targets=attackTargets(g,'ai').filter(target=>target.kind==='leader'||foe.field.find(card=>card.uid===target.uid)?.rested);
   const attackers=[own.leader,...own.field].filter(card=>(card.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(card.uid)&&card.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',card));
-  const outlook=combatOutlook(g,attempted),policy=getAiPolicyBias(g),choices=[];
+  const outlook=combatOutlook(g,attempted),policy=getAiPolicyBias(g),sequence=bestLeaderAttackSequence(g,attackers),choices=[];
   for(const attacker of attackers){
     for(const target of targets){
       if(battlePower(attacker)<targetPower(g,target))continue;
@@ -378,11 +409,12 @@ const chooseBestAttack=async(engine,attempted)=>{
       if(!declared||battle?.kind!=='battle')continue;
       const defender=shadow.state.sides.player;
       const required=Math.max(0,Number(battle.power||0)-Number(battle.targetPower||0)+1000);
-      const counterCapacity=counterOptions(shadow.state,'player').reduce((sum,card)=>sum+Number(card.counter||0),0);
-      const estimatedCounter=Math.min(counterCapacity,Math.max(0,foe.hand.length-1)*900+(foe.life.length<=1?700:0));
+      const estimatedCounter=Math.max(0,foe.hand.length-1)*900+(foe.life.length<=1?700:0);
       const force=Math.min(required,estimatedCounter)/1000;
       let score=positionScore(shadow.state)*.08+force*4;
       if(target.kind==='leader'){
+        if(sequence.order[0]?.uid===attacker.uid)score+=sequence.win?2400:90;
+        else if(sequence.win)score-=500;
         const doubleAttack=(attacker.keywords||[]).includes('doubleAttack')||(attacker.keywords||[]).includes('double attack');
         const likelyDamage=required>estimatedCounter;
         score+=28+(4-foe.life.length)*12+(likelyDamage?52:0)+(doubleAttack?35:0);
@@ -398,7 +430,7 @@ const chooseBestAttack=async(engine,attempted)=>{
         const value=Number(card?.cost||0)*5+Number(card?.power||0)/1000*3+((card?.keywords||[]).includes('blocker')?18:0);
         score+=value+(required>estimatedCounter?30:0)-8;
         score-=policy.aggression*.4;
-        if(outlook.lethal)score+=((card?.keywords||[]).includes('blocker')?80:-500);
+        if(outlook.lethal||sequence.win)score+=((card?.keywords||[]).includes('blocker')?80:-700);
       }
       choices.push({attacker,target,score});
     }
