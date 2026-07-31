@@ -76,15 +76,17 @@ const chooseAiAttackTarget=(g,attacker,targets)=>{
 const desiredLuffyDefenseDon=g=>{
   const own=g.sides.ai;
   if(own.leader?.id!=='OP13-001')return 0;
-  if(own.life.length<=1)return Math.min(3,own.don.active);
-  if(own.life.length<=2)return Math.min(2,own.don.active);
-  return Math.min(2,own.don.active);
+  const hasDance=own.hand.some(card=>card.id==='OP05-038');
+  const hasPaidCounter=own.hand.some(card=>['OP12-037','OP13-040'].includes(card.id));
+  const eventReserve=hasDance?2:hasPaidCounter?1:0;
+  const leaderReserve=own.life.length<=1?2:1;
+  return Math.min(own.don.active,Math.max(eventReserve,leaderReserve));
 };
 const playScore=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player,turns=g.turnsTaken?.ai||0;
   if(card.type==='stage')return own.stage?-1000:(card.id==='OP09-099'?104:card.id==='ST31-005'?130:55);
   if(own.leader?.id==='OP16-080'){
-    if(card.id==='OP09-093')return 170+(foe.field.length*7)+(own.life.length<=2?15:0);
+    if(card.id==='OP09-093')return 220+(foe.field.length*9)+(foe.leader?.id==='OP13-001'?95:0)+(own.life.length<=2?20:0);
     if(card.id==='OP16-116')return 182+(foe.life.length<=2?24:0);
     if(card.id==='OP16-119')return 155+(own.life.length<=2?24:0);
     if(card.id==='EB04-058')return 150+(own.life.length<=2?55:0);
@@ -307,7 +309,7 @@ const inMatchVarietyBonus=(g,card)=>{
   return -Math.min(18,same*7)+(same===0&&distinct>1?3:0);
 };
 const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
-  const g=engine.state,candidates=g.sides.ai.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card));
+  const g=engine.state,ownNow=g.sides.ai,beforeCombatNow=combatOutlook(g,attempted),defenseReserve=beforeCombatNow.lethal?0:desiredLuffyDefenseDon(g),candidates=ownNow.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card)&&(ownNow.leader?.id!=='OP13-001'||beforeCombatNow.lethal||ownNow.don.active-Number(card.cost||0)>=defenseReserve));
   const beforeCombat=combatOutlook(g,attempted),evaluated=[];
   for(const card of candidates){
     const shadow=cloneForLookahead(engine);
@@ -500,11 +502,11 @@ if(!attempted.has('__luffy_support__')){
   const ready=[own.leader,...own.field].filter(card=>legalAttack(g,'ai',card));
   if(own.don.active>0&&ready.length){
     let attached=0;
-    if(own.leader?.id==='OP13-001'&&ready.some(card=>card.uid===own.leader.uid)&&own.don.active>0){
-      if(engine.attachDon('ai',own.leader.uid,1))attached++;
-    }
     const outlookNow=combatOutlook(g,attempted);
     const reserve=outlookNow.lethal?0:desiredLuffyDefenseDon(g);
+    if(own.leader?.id==='OP13-001'&&ready.some(card=>card.uid===own.leader.uid)&&own.don.active>reserve){
+      if(engine.attachDon('ai',own.leader.uid,1))attached++;
+    }
     let spendable=Math.max(0,own.don.active-reserve);
     const leaderPower=Number(g.sides.player.leader?.power||0)+Number(g.sides.player.leader?.tempPower||0);
     const lines=outlookNow.lethal?[leaderPower,leaderPower+2000,leaderPower+4000]:[leaderPower,leaderPower+2000];
@@ -566,7 +568,11 @@ export function chooseDefense(g,s,a){
 
   const futureReserve=Math.min(3,remainingAttackers);
   const baseFloor=own.life.length<=1?futureReserve:own.life.length===2?Math.max(1,futureReserve-1):2;
-  const options=counterOptions(g,s).slice(0,14),maxUse=Math.max(0,own.hand.length-baseFloor);
+  const options=counterOptions(g,s).filter(card=>{
+    if(card.id==='OP05-038')return own.don.active>=2;
+    if(['OP12-037','OP13-040'].includes(card.id))return a.targetKind==='leader'&&own.don.active>=1;
+    return true;
+  }).slice(0,14),maxUse=Math.max(0,own.hand.length-baseFloor);
   let best=null;
   const limit=1<<options.length;
   for(let mask=1;mask<limit;mask++){
