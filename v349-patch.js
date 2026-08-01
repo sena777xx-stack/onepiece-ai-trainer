@@ -508,14 +508,14 @@ GameEngine.prototype.playCard=async function(side,uid){
   this.state.op14031EndTurn=this.state.op14031EndTurn||{player:0,ai:0};
   this.state.op14031EndTurn[side]=(this.state.op14031EndTurn[side]||0)+1;
   const foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
-  const options=foe.field.filter(card=>(card.cost||0)<=8&&!card.rested).map(card=>card.uid);
+  const options=foe.field.filter(card=>this.effectiveCost(foeSide,card)<=8&&!card.rested).map(card=>card.uid);
   if(!options.length){
     this.log(source.name+'の登場時：レストにできる相手キャラはいません');
     return result;
   }
   if(side==='ai'){
     const targets=foe.field.filter(card=>options.includes(card.uid))
-      .sort((a,b)=>((b.cost||0)-(a.cost||0))||((b.power||0)-(a.power||0))).slice(0,2);
+      .sort((a,b)=>(this.effectiveCost(foeSide,b)-this.effectiveCost(foeSide,a))||((b.power||0)-(a.power||0))).slice(0,2);
     for(const card of targets)card.rested=true;
     this.log(source.name+'の登場時：'+targets.map(card=>card.name).join('、')+'をレストにした');
     return result;
