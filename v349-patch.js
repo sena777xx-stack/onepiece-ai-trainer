@@ -2605,7 +2605,7 @@ const aiSearchValue351=(state,card)=>{
     if(Number(card.cost||0)<=Math.max(1,own.don.total+2))value+=6;
   }
   const copies=own.hand.filter(item=>item.id===card.id).length;
-  return value-copies*4;
+  return value-copies*(own.leader.id==='OP13-001'?8:4);
 };
 const previousAiSearchPlay351=GameEngine.prototype.playCard;
 GameEngine.prototype.playCard=async function(side,uid){
