@@ -109,7 +109,7 @@ const playScore=(g,card)=>{
     if(Number(card.counter||0)>=2000)return own.life.length<=2||own.hand.length<=5?25:74;
   }
   if(card.id==='OP01-016'||card.id==='EB02-017'||card.id==='EB04-002')return turns<=2?125:(own.hand.length<=4?62:82);
-  if(card.id==='OP14-031')return 108+(own.life.length<=2?30:0)+foe.field.filter(c=>!c.rested&&(c.cost||0)<=8).length*8;
+  if(card.id==='OP14-031')return 108+(own.life.length<=2?30:0)+foe.field.filter(c=>!c.rested&&engineCost(g,'player',c)<=8).length*8;
   if(card.id==='OP13-118')return 112+(foe.life.length<=2?25:0);
   if(card.id==='ST31-004')return 102+([own.leader,...own.field].reduce((n,c)=>n+(c.attachedDon||0),0)>=3?25:0);
   if(card.id==='OP13-037'||card.id==='OP13-027'||card.id==='OP14-022')return 100;
