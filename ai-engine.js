@@ -80,9 +80,11 @@ const desiredLuffyDefenseDon=g=>{
   const hasPaidCounter=own.hand.some(card=>['OP12-037','OP13-040'].includes(card.id));
   const eventReserve=hasDance?2:hasPaidCounter?1:0;
   const incoming=[g.sides.player.leader,...g.sides.player.field].filter(card=>legalAttack(g,'player',card)).length;
-  /* At life 0, retain enough DON!! for several +2000 leader-effect uses,
-     but still leave five DON!! available for board development at 10 DON!!. */
-  const leaderReserve=own.life.length===0?Math.min(5,Math.max(3,incoming))
+  const negatedUntil=Number(own.leader.effectsNegatedThroughTurn??own.leader.effectsNegatedTurn??-1);
+  const leaderEffectAvailable=negatedUntil<g.turn;
+  /* Never reserve DON!! for Luffy's leader effect while 10-cost Teach has
+     negated it. Keep only DON!! that can actually pay a Counter event. */
+  const leaderReserve=!leaderEffectAvailable?0:own.life.length===0?Math.min(5,Math.max(3,incoming))
     :own.life.length===1?Math.min(4,Math.max(2,incoming)):1;
   return Math.min(own.don.active,Math.max(eventReserve,leaderReserve));
 };
@@ -91,12 +93,12 @@ const playScore=(g,card)=>{
   if(card.type==='stage')return own.stage?-1000:(card.id==='OP09-099'?104:card.id==='ST31-005'?130:55);
   if(own.leader?.id==='OP16-080'){
     if(card.id==='OP09-093')return 220+(foe.field.length*9)+(foe.leader?.id==='OP13-001'?95:0)+(own.life.length<=2?20:0);
-    if(card.id==='OP16-116')return 182+(foe.life.length<=2?24:0);
+    if(card.id==='OP16-116')return 182+(foe.life.length<=2?24:0)+(own.hand.some(target=>target.uid!==card.uid&&target.id==='OP09-093')?72:0);
     if(card.id==='OP16-119')return 155+(own.life.length<=2?24:0);
     if(card.id==='EB04-058')return 150+(own.life.length<=2?55:0);
     if(card.id==='EB04-059')return 135+foe.field.filter(target=>engineCost(g,'player',target)<=6).length*14;
     if(card.id==='OP16-108')return 124+(own.trash.some(target=>(target.traits||[]).includes('黒ひげ海賊団')&&Number(target.cost||0)<=6)?18:0);
-    if(card.id==='OP16-115')return 118+own.trash.filter(hasTrigger).length*5;
+    if(card.id==='OP16-115')return 118+own.trash.filter(hasTrigger).length*5+(own.trash.some(target=>target.id==='OP16-116')&&own.hand.some(target=>target.id==='OP09-093')?48:0);
     if(card.id==='OP09-096')return turns<=3?154:110;
     if(['OP16-103','OP16-109','OP16-110'].includes(card.id))return turns<=3?148:88;
     if(card.id==='OP09-086')return 115+Math.min(35,own.trash.length*3);
