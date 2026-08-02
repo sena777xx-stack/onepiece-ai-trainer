@@ -159,8 +159,15 @@ const matchupPlayBonus=(g,card)=>{
     if(['OP01-016','EB02-017','EB04-002'].includes(card.id)&&second)bonus+=10;
     if(['OP13-118','ST31-004','EB04-007'].includes(card.id))bonus+=second?8:16;
   }else if(ownId==='OP13-001'&&foeId==='OP16-080'){
-    if(['OP13-118','ST31-004','EB04-007'].includes(card.id))bonus+=18;
-    if(['OP10-011','OP14-031'].includes(card.id))bonus+=second?16:8;
+    /* 10,000-game self-play correction: Teach won about 91%. Luffy must
+       prioritize active-DON engines, rest effects and redirect-resistant
+       finishers instead of spending turns on low-impact bodies. */
+    if(['OP13-118','ST31-004','EB04-007'].includes(card.id))bonus+=55;
+    if(card.id==='OP14-031')bonus+=second?82:70;
+    if(card.id==='OP15-032')bonus+=45;
+    if(['OP13-037','OP13-027','OP14-022'].includes(card.id))bonus+=28;
+    if(['OP01-016','EB02-017','EB04-002'].includes(card.id)&&turns<=3)bonus+=12;
+    if(card.id==='OP10-011')bonus+=second?24:14;
   }else if(ownId==='OP16-080'&&foeId==='OP16-080'){
     if(card.id==='OP09-093')bonus+=30;if(card.id==='OP16-119')bonus+=16;if(card.id==='EB04-058')bonus+=second?22:12;
     if(['OP16-103','OP16-109','OP16-110','OP09-096'].includes(card.id))bonus+=second?12:7;
