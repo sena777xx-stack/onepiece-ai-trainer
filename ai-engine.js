@@ -1,6 +1,15 @@
 import{legalPlay,legalAttack,attackTargets,counterOptions,blockers}from'./rule-engine-v3.js?v=3441';import{recordAiTurn,getAiPolicyBias,getCardLearningBonus}from'./ai-telemetry.js?v=3513';const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const battlePower=card=>(card.power||0)+(card.attachedDon||0)*1000+(card.tempPower||0);
 const targetPower=(g,target)=>{const foe=g.sides.player,card=target.kind==='leader'?foe.leader:foe.field.find(c=>c.uid===target.uid);return(card?.power||0)+(card?.tempPower||0)};
+/* Teach can turn a leader attack into a battle against one of his characters.
+   Treat the strongest redirect body as the real defensive line so Luffy does
+   not waste several 5k/7k attacks into a waiting 10-cost Teach. */
+const leaderPressurePower=g=>{
+  const foe=g.sides.player,base=Number(foe.leader?.power||0)+Number(foe.leader?.tempPower||0);
+  if(foe.leader?.id!=='OP16-080'||foe.hand.length===0)return base;
+  const redirectBodies=foe.field.filter(card=>!card.rested||Number(card.power||0)>=7000);
+  return Math.max(base,...redirectBodies.map(battlePower));
+};
 const luffyRestoreIds=new Set(['OP13-037','OP14-022','OP14-031','OP13-027','OP13-118']);
 const hasTrigger=card=>(card?.keywords||[]).includes('trigger')||String(card?.text||'').includes('【トリガー】')||(card?.effects||[]).some(effect=>effect.timing==='trigger');
 const usefulMainEvent=(g,card)=>{
@@ -348,6 +357,12 @@ const chooseBestPlay=async(engine,attempted,preCombatOnly=false)=>{
     score+=(safetyBefore-safetyAfter)*1.8;
     const defensiveCardCost=Number(card.counter||0)>=2000?(g.sides.ai.life.length<=2?58:22):Number(card.counter||0)/120;
     const handAfter=shadow.state.sides.ai.hand.length;
+    /* Convert oversized hands into board pressure instead of ending with
+       several playable cards and unused DON!!. Preserve 2k counters. */
+    if(g.sides.ai.hand.length>=7&&g.sides.ai.field.length<5&&card.type==='character'&&Number(card.counter||0)<2000){
+      score+=28+(g.sides.ai.hand.length-6)*9;
+      if(Number(card.cost||0)>=3)score+=16;
+    }
     score-=defensiveCardCost;
     if(handAfter<=2&&g.sides.ai.life.length<=2)score-=55;
     if(preCombatOnly&&!preCombatPlayUseful(g,card)&&beforeCombat.lethal)score-=2200;
@@ -435,6 +450,8 @@ const chooseBestAttack=async(engine,attempted)=>{
       const defender=shadow.state.sides.player;
       const required=Math.max(0,Number(battle.power||0)-Number(battle.targetPower||0)+1000);
       const estimatedCounter=Math.max(0,foe.hand.length-1)*900+(foe.life.length<=1?700:0);
+      const redirectPower=target.kind==='leader'?leaderPressurePower(g):Number(battle.targetPower||0);
+      const redirectGap=Math.max(0,redirectPower-Number(battle.power||0));
       const force=Math.min(required,estimatedCounter)/1000;
       let score=positionScore(shadow.state)*.08+force*4;
       if(target.kind==='leader'){
@@ -443,8 +460,12 @@ const chooseBestAttack=async(engine,attempted)=>{
         const doubleAttack=(attacker.keywords||[]).includes('doubleAttack')||(attacker.keywords||[]).includes('double attack');
         const likelyDamage=required>estimatedCounter;
         score+=28+(4-foe.life.length)*12+(likelyDamage?52:0)+(doubleAttack?35:0);
+        if(foe.leader?.id==='OP16-080'&&foe.hand.length){
+          if(redirectGap>0)score-=420+redirectGap/10;
+          else score+=90;
+        }
         score+=policy.aggression+policy.efficiency*.35;
-        const attackMargin=Math.max(0,Number(battle.power||0)-Number(battle.targetPower||0));
+        const attackMargin=Math.max(0,Number(battle.power||0)-redirectPower);
         const efficientPressure=attackMargin>=1000&&attackMargin<=3000;
         if(efficientPressure)score+=foe.hand.length>=5?42:24;
         score-=Math.max(0,attackMargin-5000)/250;
@@ -531,7 +552,7 @@ if(!attempted.has('__luffy_support__')){
       if(engine.attachDon('ai',own.leader.uid,1))attached++;
     }
     let spendable=Math.max(0,own.don.active-reserve);
-    const leaderPower=Number(g.sides.player.leader?.power||0)+Number(g.sides.player.leader?.tempPower||0);
+    const leaderPower=leaderPressurePower(g);
     const lines=outlookNow.lethal?[leaderPower,leaderPower+2000,leaderPower+4000]:[leaderPower,leaderPower+2000];
     for(const line of lines){
       const candidates=ready.map(card=>({card,need:Math.max(0,Math.ceil((line-battlePower(card))/1000))}))
