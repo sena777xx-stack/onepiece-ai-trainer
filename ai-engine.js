@@ -406,12 +406,15 @@ const teachDiscardPenalty=(g,card)=>{
 };
 const attackOrders=cards=>{
   if(cards.length<=1)return[cards];
-  const limited=cards.slice(0,6),out=[];
-  const walk=(prefix,rest)=>{
-    if(!rest.length){out.push(prefix);return}
-    for(let i=0;i<rest.length;i++)walk([...prefix,rest[i]],[...rest.slice(0,i),...rest.slice(i+1)]);
-  };
-  walk([],limited);return out;
+  const limited=cards.slice(0,6),power=card=>battlePower(card),isDouble=card=>(card.keywords||[]).some(keyword=>keyword==='doubleAttack'||keyword==='double attack');
+  const candidates=[
+    limited,
+    limited.slice().sort((a,b)=>power(b)-power(a)||String(a.uid).localeCompare(String(b.uid))),
+    limited.slice().sort((a,b)=>power(a)-power(b)||String(a.uid).localeCompare(String(b.uid))),
+    limited.slice().sort((a,b)=>(isDouble(b)?1:0)-(isDouble(a)?1:0)||power(b)-power(a)),
+    limited.slice().sort((a,b)=>(isDouble(a)?1:0)-(isDouble(b)?1:0)||power(a)-power(b))
+  ];
+  const seen=new Set();return candidates.filter(order=>{const key=order.map(card=>card.uid).join('|');if(seen.has(key))return false;seen.add(key);return true});
 };
 const bestLeaderAttackSequence=(g,attackers)=>{
   const foe=g.sides.player,leaderPower=Number(foe.leader?.power||0)+Number(foe.leader?.tempPower||0);
