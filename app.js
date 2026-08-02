@@ -42,17 +42,19 @@ actions.handNoticeContinue=()=>{ui.close();engine.resolveHandNotice();render();m
 actions.undo=()=>{ui.close();const ok=engine.undo();if(!ok){ui.toast('これ以上戻せません');return}ui.knownHandIds=new Set(engine.state.sides.player.hand.map(c=>c.uid));ui.lastPhase=engine.state.phase;render();maybeAi()};
 actions.attack=id=>{attacker=id;ui.close();const foe=engine.state.sides.ai,candidates=[{kind:'leader',uid:foe.leader.uid,name:foe.leader.name,power:(foe.leader.power||0)+(foe.leader.tempPower||0)},...foe.field.filter(c=>c.rested).map(c=>({kind:'character',uid:c.uid,name:c.name,power:(c.power||0)+(c.tempPower||0)}))];ui.targets(candidates)};
 const deckName=d=>(d?.name||'デッキ').replace(/\s+\d{4}-\d{2}-\d{2}$/,'');const deckLeader=d=>engine.cards?.[d?.leader]||null;const ui=new UI(root,actions),home=()=>{const playerLeader=deckLeader(engine.decks.player),aiLeader=deckLeader(engine.decks.ai);ui.renderHome(Boolean(storage.load()),{playerName:deckName(engine.decks.player),aiName:deckName(engine.decks.ai),playerLeaderName:playerLeader?.name||'',aiLeaderName:aiLeader?.name||'',playerLeaderImage:playerLeader?.imageUrl||'',aiLeaderImage:aiLeader?.imageUrl||''})},render=()=>{recordAiMatch(engine.state);ui.renderGame(engine.state);if(engine.state.pending?.kind==='trigger'&&engine.state.pending.side==='player')ui.triggerPrompt(engine.state.pending.card)};async function maybeAi(){if(engine.state.activeSide==='ai'&&!engine.state.winner){render();await runAiTurn(engine,storage.settings().aiSpeed,render);render()}}window.__resumeAi349=maybeAi;try{const[c,p,luffy]=await Promise.all([json('./cards.json?v=3526'),json('./black-yellow-teach.json?v=3422'),json('./red-green-luffy.json?v=3421')]);playerDecks={teach:p,luffy};aiDecks={teach:p,luffy};const settings=storage.settings(),savedDeck=settings.playerDeck,savedAiDeck=settings.aiDeck;selectedPlayerDeck=playerDecks[savedDeck]?savedDeck:'teach';selectedAiDeck=aiDecks[savedAiDeck]?savedAiDeck:'luffy';if(savedAiDeck!==selectedAiDeck)storage.settings({...settings,aiDeck:selectedAiDeck});cardCatalog=Object.fromEntries(c.map(x=>[x.id,x]));engine=new GameEngine(cardCatalog,{player:playerDecks[selectedPlayerDeck],ai:aiDecks[selectedAiDeck]});window.__luffyEngine349=engine;home();
-if(new URLSearchParams(location.search).get('autotrain')==='10000'){
+const trainingParams=new URLSearchParams(location.search),trainingTarget=Math.max(100,Math.min(10000,Number(trainingParams.get('autotrain'))||0));
+if(trainingTarget>=100){
   const trainButton=document.createElement('button');
-  trainButton.type='button';trainButton.textContent='10,000戦のAI学習を開始';
+  trainButton.type='button';trainButton.textContent=trainingTarget.toLocaleString()+'戦のAI学習を開始';
   trainButton.style.cssText='position:fixed;z-index:99999;left:20px;right:20px;bottom:24px;padding:18px;border-radius:14px;background:#d99b08;color:white;font-weight:800;font-size:18px';
   document.body.appendChild(trainButton);
   trainButton.addEventListener('click',async()=>{
-    trainButton.disabled=true;const plans=[['teach','luffy'],['luffy','teach'],['teach','teach'],['luffy','luffy']],summary={total:0,plans:[],startedAt:Date.now()};
+    trainButton.disabled=true;const plans=[['teach','luffy'],['luffy','teach'],['teach','teach'],['luffy','luffy']],summary={total:0,target:trainingTarget,shard:Number(trainingParams.get('shard')||0),plans:[],startedAt:Date.now()};
     for(const [leftKey,rightKey] of plans){
       const row={left:leftKey,right:rightKey,games:0,leftWins:0,rightWins:0,draws:0,turns:0};
-      for(const batch of Array(25).fill(100)){
-        trainButton.textContent='学習中 '+summary.total+' / 10000（'+leftKey+' vs '+rightKey+'）';
+      const planTarget=Math.floor(trainingTarget/plans.length),batches=Array.from({length:Math.ceil(planTarget/100)},(_,index)=>Math.min(100,planTarget-index*100));
+      for(const batch of batches){
+        trainButton.textContent='学習中 '+summary.total+' / '+trainingTarget+'（'+leftKey+' vs '+rightKey+'）';
         const result=await runSelfPlay(cardCatalog,playerDecks[leftKey],aiDecks[rightKey],batch,()=>{},'alternate');
         row.games+=result.games;row.leftWins+=result.leftWins;row.rightWins+=result.rightWins;row.draws+=result.draws;row.turns+=result.totalTurns;summary.total+=result.games;
         await new Promise(resolve=>setTimeout(resolve,0));
