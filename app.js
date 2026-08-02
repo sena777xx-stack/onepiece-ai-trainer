@@ -51,7 +51,7 @@ if(new URLSearchParams(location.search).get('autotrain')==='10000'){
     trainButton.disabled=true;const plans=[['teach','luffy'],['luffy','teach'],['teach','teach'],['luffy','luffy']],summary={total:0,plans:[],startedAt:Date.now()};
     for(const [leftKey,rightKey] of plans){
       const row={left:leftKey,right:rightKey,games:0,leftWins:0,rightWins:0,draws:0,turns:0};
-      for(const batch of[1000,1000,500]){
+      for(const batch of Array(25).fill(100)){
         trainButton.textContent='学習中 '+summary.total+' / 10000（'+leftKey+' vs '+rightKey+'）';
         const result=await runSelfPlay(cardCatalog,playerDecks[leftKey],aiDecks[rightKey],batch,()=>{},'alternate');
         row.games+=result.games;row.leftWins+=result.leftWins;row.rightWins+=result.rightWins;row.draws+=result.draws;row.turns+=result.totalTurns;summary.total+=result.games;
