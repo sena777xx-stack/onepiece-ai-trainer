@@ -297,7 +297,17 @@ const preCombatPlayUseful=(g,card)=>{
   const own=g.sides.ai,foe=g.sides.player;
   const searchers=new Set(['ST31-005','OP01-016','EB02-017','EB04-002','OP09-096']);
   if(searchers.has(card.id)&&own.hand.length<=7)return true;
-  if(['OP14-031','OP13-118','ST31-004','EB04-007'].includes(card.id))return true;
+  if(['OP13-118','ST31-004','EB04-007'].includes(card.id))return true;
+  if(card.id==='OP14-031'){
+    const legalRestTargets=foe.field.filter(target=>!target.rested&&engineCost(g,'player',target)<=8);
+    const canOpenAttack=legalRestTargets.some(target=>(target.keywords||[]).includes('blocker'));
+    const urgentDefense=own.life.length===0&&legalRestTargets.some(target=>Number(target.power||0)+Number(target.tempPower||0)>=7000);
+    /* Against Teach, attack before deploying Nami unless resting a Blocker is
+       immediately useful. Otherwise Vasco Shot can be redirected into the
+       attack, get K.O.'d, and rest the newly played Nami before defense. */
+    if(foe.leader?.id==='OP16-080')return canOpenAttack;
+    return canOpenAttack||urgentDefense||legalRestTargets.length>=2;
+  }
   /* Log-derived correction: with a large hand and open field slots, develop
      real attackers before converting all remaining DON!! into one attack. */
   const affordable=card.type==='character'&&Number(card.cost||0)<=Number(own.don.active||0);
