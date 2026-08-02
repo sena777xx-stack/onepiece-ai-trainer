@@ -61,7 +61,7 @@ GameEngine.prototype.submitCounters=function(side,counterIds=[]){
   const requested=Array.isArray(counterIds)?counterIds:[counterIds];
   const aiCopies=side==='ai'?requested.filter(uid=>own?.hand?.some(card=>card.uid===uid&&card.id==='OP05-038')).length:0;
   const finish=()=>{
-    if(!aiCopies||!own)return;
+    if(!aiCopies||!own||this.state.winner)return;
     for(let copy=0;copy<aiCopies;copy++){
       if(own.don.rested<=0||own.hand.length<=0){
         this.log('舞踏石（AI）：手札を捨てず、DON!!をアクティブにしませんでした');
