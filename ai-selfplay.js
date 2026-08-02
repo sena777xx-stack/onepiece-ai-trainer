@@ -1,5 +1,5 @@
 import{GameEngine}from'./game-engine-v3.js?v=3441';
-import{runAiTurn}from'./ai-engine.js?v=3880';import{recordSelfPlayMatch}from'./ai-telemetry.js?v=3513';
+import{runAiTurn}from'./ai-engine.js?v=3900';import{recordSelfPlayMatch}from'./ai-telemetry.js?v=3513';
 
 const flip=side=>side==='player'?'ai':side==='ai'?'player':side;
 const swapPerspective=state=>{
@@ -59,9 +59,9 @@ const drainPending=async engine=>{
   }
 };
 const runSide=async(engine,side)=>{
-  if(side==='ai'){await runAiTurn(engine,0,()=>{});await drainPending(engine);return}
+  if(side==='ai'){await runAiTurn(engine,0,()=>{},true);await drainPending(engine);return}
   swapPerspective(engine.state);
-  await runAiTurn(engine,0,()=>{});
+  await runAiTurn(engine,0,()=>{},true);
   await drainPending(engine);
   swapPerspective(engine.state);
 };
