@@ -344,6 +344,10 @@ const inMatchVarietyBonus=(g,card)=>{
 const chooseBestPlay=async(engine,attempted,preCombatOnly=false,training=false)=>{
   const g=engine.state,ownNow=g.sides.ai,beforeCombatNow=combatOutlook(g,attempted),defenseReserve=beforeCombatNow.lethal?0:desiredLuffyDefenseDon(g),candidates=ownNow.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card)&&(ownNow.leader?.id!=='OP13-001'||beforeCombatNow.lethal||ownNow.don.active-Number(card.cost||0)>=defenseReserve));
   const beforeCombat=combatOutlook(g,attempted),evaluated=[];
+  if(training){
+    const ranked=candidates.map(card=>({card,score:playScore(g,card)+matchupPlayBonus(g,card)+deckPlanBonus(g,card)+getCardLearningBonus(g,card)+inMatchVarietyBonus(g,card)})).filter(item=>!preCombatOnly||preCombatPlayUseful(g,item.card)).sort((a,b)=>b.score-a.score||String(a.card.id).localeCompare(String(b.card.id)));
+    return ranked[0]?.card||null;
+  }
   for(const card of candidates){
     const shadow=cloneForLookahead(engine);
     let success=false;
@@ -438,11 +442,16 @@ const bestLeaderAttackSequence=(g,attackers)=>{
   }
   return best;
 };
-const chooseBestAttack=async(engine,attempted)=>{
+const chooseBestAttack=async(engine,attempted,training=false)=>{
   const g=engine.state,own=g.sides.ai,foe=g.sides.player;
   const targets=attackTargets(g,'ai').filter(target=>target.kind==='leader'||foe.field.find(card=>card.uid===target.uid)?.rested);
   const attackers=[own.leader,...own.field].filter(card=>(card.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(card.uid)&&card.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',card));
   const outlook=combatOutlook(g,attempted),policy=getAiPolicyBias(g),sequence=bestLeaderAttackSequence(g,attackers),choices=[];
+  if(training){
+    const ordered=sequence.order.length?sequence.order:attackers.slice().sort((a,b)=>battlePower(b)-battlePower(a));
+    for(const attacker of ordered){const target=chooseAiAttackTarget(g,attacker,targets);if(target&&battlePower(attacker)>=targetPower(g,target))return{attacker,target,score:0}}
+    return null;
+  }
   for(const attacker of attackers){
     for(const target of targets){
       if(battlePower(attacker)<targetPower(g,target))continue;
@@ -581,7 +590,7 @@ if(!attempted.has('__luffy_support__')){
     }
   }
 }
-const attackChoice=await chooseBestAttack(engine,attempted);if(attackChoice){const a=attackChoice.attacker,target=attackChoice.target,targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(settle);continue}await show('行動を終えてターンを終了します');recordAiTurn(g,{lethalMiss:openingOutlook.lethal&&!g.winner,donWasted:g.sides.ai.don.active});const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
+const attackChoice=await chooseBestAttack(engine,attempted,training);if(attackChoice){const a=attackChoice.attacker,target=attackChoice.target,targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(settle);continue}await show('行動を終えてターンを終了します');recordAiTurn(g,{lethalMiss:openingOutlook.lethal&&!g.winner,donWasted:g.sides.ai.don.active});const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
 const defenseHandKeepValue=card=>{
   let value=Number(card.counter||0)/1000;
   if(card.id==='ST21-003')value+=12;
