@@ -67,7 +67,7 @@ const runSide=async(engine,side)=>{
 };
 export async function runSelfPlay(cards,deckLeft,deckRight,games=100,onProgress=()=>{},firstMode='alternate'){
   const count=Math.max(1,Math.min(1000,Number(games)||100));
-  const mode=['left','right','alternate'].includes(firstMode)?firstMode:'alternate',result={games:count,firstMode:mode,leftWins:0,rightWins:0,draws:0,stalls:0,totalTurns:0,startedAt:Date.now()};
+  const mode=['left','right','alternate'].includes(firstMode)?firstMode:'alternate',result={requestedGames:count,games:0,firstMode:mode,leftWins:0,rightWins:0,draws:0,stalls:0,totalTurns:0,startedAt:Date.now()};
   for(let game=0;game<count;game++){
     const engine=new GameEngine(cards,{player:deckLeft,ai:deckRight}),first=mode==='left'?'player':mode==='right'?'ai':game%2===0?'player':'ai';
     engine.start(first);
@@ -82,12 +82,13 @@ export async function runSelfPlay(cards,deckLeft,deckRight,games=100,onProgress=
     else if(engine.state.winner==='ai')result.rightWins++;
     else{result.draws++;result.stalls++}
     recordSelfPlayMatch(engine.state,{actions,stalled:!engine.state.winner,safetyStop:!engine.state.winner&&(engine.state.turn>40||actions>=240)});
-    result.totalTurns+=Number(engine.state.turn||0);
-    if(game%10===0||game===count-1){onProgress({...result,completed:game+1});await new Promise(resolve=>setTimeout(resolve,0))}
+    result.totalTurns+=Number(engine.state.turn||0);result.games=game+1;
+    if(game%10===0||game===count-1){const keepGoing=onProgress({...result,completed:result.games});await new Promise(resolve=>setTimeout(resolve,0));if(keepGoing===false){result.cancelled=true;break}}
   }
-  result.averageTurns=Number((result.totalTurns/count).toFixed(2));
-  result.leftWinRate=Number((result.leftWins/count*100).toFixed(1));
-  result.rightWinRate=Number((result.rightWins/count*100).toFixed(1));
+  const completed=Math.max(1,result.games);
+  result.averageTurns=Number((result.totalTurns/completed).toFixed(2));
+  result.leftWinRate=Number((result.leftWins/completed*100).toFixed(1));
+  result.rightWinRate=Number((result.rightWins/completed*100).toFixed(1));
   result.finishedAt=Date.now();
   try{localStorage.setItem('op-ai-selfplay-last',JSON.stringify(result))}catch{}
   return result;
