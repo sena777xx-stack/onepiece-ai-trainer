@@ -153,7 +153,7 @@ const cloneForLookahead=engine=>{
   return shadow;
 };
 const matchupPlayBonus=(g,card)=>{
-  const own=g.sides.ai,foe=g.sides.player,ownId=own.leader?.id,foeId=foe.leader?.id,second=g.firstPlayer!=='ai';let bonus=0;
+  const own=g.sides.ai,foe=g.sides.player,ownId=own.leader?.id,foeId=foe.leader?.id,second=g.firstPlayer!=='ai',turns=g.turnsTaken?.ai||0;let bonus=0;
   if(ownId==='OP13-001'&&foeId==='OP13-001'){
     if(['OP10-011','OP14-031'].includes(card.id))bonus+=second?24:14;
     if(['OP01-016','EB02-017','EB04-002'].includes(card.id)&&second)bonus+=10;
