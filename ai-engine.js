@@ -88,7 +88,7 @@ const desiredLuffyDefenseDon=g=>{
   const hasDance=own.hand.some(card=>card.id==='OP05-038');
   const hasPaidCounter=own.hand.some(card=>['OP12-037','OP13-040'].includes(card.id));
   const eventReserve=hasDance?2:hasPaidCounter?1:0;
-  const incoming=[g.sides.player.leader,...g.sides.player.field].filter(card=>legalAttack(g,'player',card)).length;
+  const incoming=[g.sides.player.leader,...g.sides.player.field].filter(card=>(card.preventAttackThroughTurn??-1)<g.turn+1).length;
   const negatedUntil=Number(own.leader.effectsNegatedThroughTurn??own.leader.effectsNegatedTurn??-1);
   const leaderEffectAvailable=negatedUntil<g.turn;
   /* Never reserve DON!! for Luffy's leader effect while 10-cost Teach has
@@ -226,7 +226,7 @@ const deckPlanBonus=(g,card)=>{
 const combatOutlook=(g,attempted=new Set())=>{
   const own=g.sides.ai,foe=g.sides.player;
   const attackers=[own.leader,...own.field].filter(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
-  const leaderPower=Number(foe.leader?.power||0)+Number(foe.leader?.tempPower||0);
+  const leaderPower=leaderPressurePower(g);
   let spareDon=Math.max(0,Number(own.don?.active||0)),damage=0,pressure=0;
   const powers=attackers.map(card=>({card,power:battlePower(card)})).sort((a,b)=>b.power-a.power);
   for(const item of powers){
@@ -309,7 +309,8 @@ const preCombatPlayUseful=(g,card)=>{
   if(['OP13-118','ST31-004','EB04-007'].includes(card.id))return true;
   if(card.id==='OP14-031'){
     const legalRestTargets=foe.field.filter(target=>!target.rested&&engineCost(g,'player',target)<=8);
-    const canOpenAttack=legalRestTargets.some(target=>(target.keywords||[]).includes('blocker'));
+    const readyPower=Math.max(0,...[own.leader,...own.field].filter(target=>legalAttack(g,'ai',target)).map(battlePower));
+    const canOpenAttack=legalRestTargets.some(target=>(target.keywords||[]).includes('blocker')||(Number(target.cost||0)>=5&&readyPower>=Number(target.power||0)+Number(target.tempPower||0)));
     const urgentDefense=own.life.length===0&&legalRestTargets.some(target=>Number(target.power||0)+Number(target.tempPower||0)>=7000);
     /* Against Teach, attack before deploying Nami unless resting a Blocker is
        immediately useful. Otherwise Vasco Shot can be redirected into the
@@ -325,8 +326,8 @@ const preCombatPlayUseful=(g,card)=>{
   if(own.leader?.id==='OP13-001'&&own.life.length===0&&affordable&&lowDefenseCost&&['ST31-004','OP14-022','OP13-037','OP13-027','OP15-032','EB04-007'].includes(card.id))return true;
   if(own.leader?.id==='OP16-080'&&affordable&&lowDefenseCost&&own.field.length<3&&['OP16-103','OP16-108','OP16-109','OP16-110','OP09-086','OP16-119'].includes(card.id))return true;
   if(card.id==='ST21-003')return foe.life.length<=1&&foe.field.some(target=>!target.rested&&(target.keywords||[]).includes('blocker'));
-  if(card.id==='OP09-093')return foe.life.length<=1||foe.field.some(target=>(target.effects||[]).length>0&&Number(target.power||0)>=7000);
-  if(card.id==='EB04-059')return foe.field.some(target=>!target.rested&&(target.keywords||[]).includes('blocker')&&engineCost(g,'player',target)<=6);
+  if(card.id==='OP09-093')return foe.leader?.id==='OP13-001'||foe.life.length<=1||foe.field.some(target=>(target.effects||[]).length>0&&Number(target.power||0)>=7000);
+  if(card.id==='EB04-059')return foe.field.some(target=>!target.rested&&engineCost(g,'player',target)<=6&&((target.keywords||[]).includes('blocker')||Number(target.power||0)>=7000||Number(target.cost||0)>=5));
   return false;
 };
 const stableChoiceIndex=(g,cards)=>{
