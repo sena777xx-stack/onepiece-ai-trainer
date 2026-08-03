@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js?v=3441';
+import{GameEngine}from'./game-engine-v3.js?v=3983';
 
 /* v364: OP01-016 / EB02-017 / EB04-002 search resolution. */
 const previousSearcherPlay364=GameEngine.prototype.playCard;
