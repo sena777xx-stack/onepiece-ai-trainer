@@ -2639,3 +2639,20 @@ UI.prototype.renderHome=function(...args){
   }
   return result;
 };
+
+/* v3984: self-play and normal AI resolve the two optional Teach choices. */
+if(typeof GameEngine.prototype.resolveBorsalinoChoice!=='function')GameEngine.prototype.resolveBorsalinoChoice=function(side,addLife=false){
+  const pending=this.state.pending,s=this.state.sides[side];
+  if(pending?.kind!=='borsalinoLifeChoice'||pending.side!==side)return false;
+  if(addLife&&s.deck.length){const card=s.deck.pop();card.faceUp=false;s.life.push(card);this.log('ボルサリーノの効果でデッキの上1枚をライフの上へ加えた')}
+  else this.log('ボルサリーノの効果を使用しなかった');
+  this.state.pending=null;this.state.phase='main';return true;
+};
+if(typeof GameEngine.prototype.resolveSanjuanChoice!=='function')GameEngine.prototype.resolveSanjuanChoice=function(side,targetUid=null){
+  const pending=this.state.pending,s=this.state.sides[side];
+  if(pending?.kind!=='sanjuanPowerChoice'||pending.side!==side)return false;
+  const target=s.leader.uid===targetUid?s.leader:s.field.find(card=>card.uid===targetUid);
+  if(target){target.tempPower=(target.tempPower||0)+(7000-Number(target.power||0));this.log('サンファン・ウルフの効果で'+target.name+'の元々のパワーを7000にした')}
+  else this.log('サンファン・ウルフのパワー変更対象を選ばなかった');
+  this.state.pending=null;this.state.phase='main';return true;
+};
