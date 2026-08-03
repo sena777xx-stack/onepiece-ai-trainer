@@ -1,5 +1,5 @@
 import{GameEngine}from'./game-engine-v3.js?v=3983';
-import{runAiTurn}from'./ai-engine.js?v=3970';import{recordSelfPlayMatch}from'./ai-telemetry.js?v=3513';
+import{runAiTurn}from'./ai-engine.js?v=3988';import{recordSelfPlayMatch}from'./ai-telemetry.js?v=3513';
 
 const flip=side=>side==='player'?'ai':side==='ai'?'player':side;
 const swapPerspective=state=>{
