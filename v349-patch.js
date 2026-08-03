@@ -2670,3 +2670,90 @@ if(typeof GameEngine.prototype.resolveDarkWaterChoice!=='function')GameEngine.pr
   }
   this.state.pending=null;this.state.phase='main';return true;
 };
+
+
+/* v3990: current-engine Teach 8 resolution and Burgess continuous power. */
+const previousTeach119Resolve3990=GameEngine.prototype.resolveTeachKoChoice;
+GameEngine.prototype.resolveTeachKoChoice=function(side,ids=[]){
+  const pending=this.state?.pending;
+  if(!['teach119OnPlayChoice','teach119TriggerChoice'].includes(pending?.kind)){
+    return previousTeach119Resolve3990.call(this,side,ids);
+  }
+  if(pending.side!==side)return false;
+  const selected=[...new Set(Array.isArray(ids)?ids:[])];
+  this.snapshot?.();
+  /* Clear first so a stale/double UI event can never resolve this effect twice. */
+  this.state.pending=null;
+  this.state.phase='main';
+  if(pending.kind==='teach119OnPlayChoice'){
+    const own=this.state.sides[side];
+    const chosen=(pending.cards||[]).find(card=>card.uid===selected[0]);
+    if(chosen){
+      chosen.faceUp=false;
+      own.life.push(chosen);
+      this.log(chosen.name+'をライフの上に加えた');
+    }
+    const rest=(pending.cards||[]).filter(card=>card.uid!==chosen?.uid);
+    own.deck.unshift(...rest);
+    this.log('残り'+rest.length+'枚をデッキの下に置いた');
+    this.syncBurgessPower?.();
+    return true;
+  }
+  const foeSide=side==='player'?'ai':'player',foe=this.state.sides[foeSide];
+  if(pending.stage==='negate'){
+    const target=foe.field.find(card=>card.uid===selected[0]);
+    if(target){
+      target.effectsNegatedTurn=this.state.turn;
+      target.effectsNegatedThroughTurn=Math.max(Number(target.effectsNegatedThroughTurn??-1),this.state.turn);
+      this.log(target.name+'の効果をこのターン中無効にした');
+    }
+    const options=foe.field.filter(card=>this.effectiveCost(foeSide,card)<=5).map(card=>card.uid);
+    if(options.length){
+      this.state.pending={...pending,stage:'ko',options};
+      this.state.phase='effectChoice';
+    }
+    this.syncBurgessPower?.();
+    return true;
+  }
+  const target=foe.field.find(card=>card.uid===selected[0]&&this.effectiveCost(foeSide,card)<=5);
+  if(target){
+    foe.field=foe.field.filter(card=>card.uid!==target.uid);
+    if(target.attachedDon){foe.don.rested+=target.attachedDon;target.attachedDon=0}
+    target.tempPower=0;target.burgessPowerBonus=0;
+    foe.trash.push(target);
+    this.log(target.name+'をK.O.');
+  }
+  this.syncBurgessPower?.();
+  return true;
+};
+
+const syncBurgessState3990=state=>{
+  if(!state?.sides)return;
+  for(const side of['player','ai']){
+    const zone=state.sides[side];
+    const bonus=Math.floor((zone.trash?.length||0)/4)*1000;
+    for(const card of zone.field||[]){
+      if(card.id!=='OP09-086')continue;
+      const old=Number(card.burgessPowerBonus||0);
+      card.tempPower=Number(card.tempPower||0)-old+bonus;
+      card.burgessPowerBonus=bonus;
+    }
+  }
+};
+GameEngine.prototype.syncBurgessPower=function(){syncBurgessState3990(this.state);return true};
+for(const method3990 of ['beginTurn','playCard','submitCounters','resolveDamage','manualMove','useTrigger','finishHachinosu','resolveTeachKoChoice','endBattle']){
+  const previous3990=GameEngine.prototype[method3990];
+  if(typeof previous3990!=='function')continue;
+  GameEngine.prototype[method3990]=function(...args){
+    this.syncBurgessPower();
+    const result=previous3990.apply(this,args);
+    if(result&&typeof result.then==='function')return result.finally(()=>this.syncBurgessPower());
+    this.syncBurgessPower();
+    return result;
+  };
+}
+const previousBurgessRender3990=UI.prototype.renderGame;
+UI.prototype.renderGame=function(g){
+  syncBurgessState3990(g);
+  return previousBurgessRender3990.call(this,g);
+};
