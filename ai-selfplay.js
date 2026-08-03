@@ -88,7 +88,7 @@ export async function runSelfPlay(cards,deckLeft,deckRight,games=100,onProgress=
     const left=engine.state.sides.player,right=engine.state.sides.ai;result.finishTotals.leftDon+=Number(left.don?.active||0);result.finishTotals.rightDon+=Number(right.don?.active||0);result.finishTotals.leftHand+=left.hand.length;result.finishTotals.rightHand+=right.hand.length;result.finishTotals.leftField+=left.field.length;result.finishTotals.rightField+=right.field.length;
     if(!engine.state.winner||engine.state.turn>=18||left.don.active>=4||right.don.active>=4)result.issueSamples.push({game:game+1,winner:engine.state.winner||'none',turn:engine.state.turn,actions,leftDon:left.don.active,rightDon:right.don.active,leftLife:left.life.length,rightLife:right.life.length,leftHand:left.hand.length,rightHand:right.hand.length});
     result.games=game+1;
-    if(game%10===0||game===count-1){const keepGoing=onProgress({...result,completed:result.games});await new Promise(resolve=>setTimeout(resolve,0));if(keepGoing===false){result.cancelled=true;break}}
+    const keepGoing=onProgress({...result,completed:result.games});await new Promise(resolve=>setTimeout(resolve,0));if(keepGoing===false){result.cancelled=true;break}
   }
   const completed=Math.max(1,result.games);
   result.averageTurns=Number((result.totalTurns/completed).toFixed(2));
