@@ -67,10 +67,11 @@ const runSide=async(engine,side)=>{
 };
 export async function runSelfPlay(cards,deckLeft,deckRight,games=100,onProgress=()=>{},firstMode='alternate'){
   const count=Math.max(1,Math.min(1000,Number(games)||100));
-  const mode=['left','right','alternate'].includes(firstMode)?firstMode:'alternate',result={requestedGames:count,games:0,firstMode:mode,leftWins:0,rightWins:0,draws:0,stalls:0,totalTurns:0,startedAt:Date.now()};
+  const mode=['left','right','alternate'].includes(firstMode)?firstMode:'alternate',result={requestedGames:count,games:0,firstMode:mode,leftWins:0,rightWins:0,draws:0,stalls:0,totalTurns:0,totalActions:0,cardPlays:{left:{},right:{}},firstStats:{leftFirst:{games:0,wins:0},rightFirst:{games:0,wins:0}},finishTotals:{leftDon:0,rightDon:0,leftHand:0,rightHand:0,leftField:0,rightField:0},issueSamples:[],startedAt:Date.now()};
   for(let game=0;game<count;game++){
     const engine=new GameEngine(cards,{player:deckLeft,ai:deckRight}),first=mode==='left'?'player':mode==='right'?'ai':game%2===0?'player':'ai';
     engine.start(first);
+    const firstBucket=first==='player'?result.firstStats.leftFirst:result.firstStats.rightFirst;firstBucket.games++;
     engine.mulligan('player',keepOpening(engine.state.sides.player.hand));
     let actions=0;
     while(!engine.state.winner&&engine.state.turn<=40&&actions<240){
@@ -78,17 +79,25 @@ export async function runSelfPlay(cards,deckLeft,deckRight,games=100,onProgress=
       await runSide(engine,engine.state.activeSide);
       actions++;
     }
-    if(engine.state.winner==='player')result.leftWins++;
-    else if(engine.state.winner==='ai')result.rightWins++;
+    if(engine.state.winner==='player'){result.leftWins++;if(first==='player')firstBucket.wins++}
+    else if(engine.state.winner==='ai'){result.rightWins++;if(first==='ai')firstBucket.wins++;}
     else{result.draws++;result.stalls++}
     recordSelfPlayMatch(engine.state,{actions,stalled:!engine.state.winner,safetyStop:!engine.state.winner&&(engine.state.turn>40||actions>=240)});
-    result.totalTurns+=Number(engine.state.turn||0);result.games=game+1;
+    result.totalTurns+=Number(engine.state.turn||0);result.totalActions+=actions;
+    const played=engine.state._aiPlayedCards||{player:[],ai:[]};for(const id of played.player||[])result.cardPlays.left[id]=(result.cardPlays.left[id]||0)+1;for(const id of played.ai||[])result.cardPlays.right[id]=(result.cardPlays.right[id]||0)+1;
+    const left=engine.state.sides.player,right=engine.state.sides.ai;result.finishTotals.leftDon+=Number(left.don?.active||0);result.finishTotals.rightDon+=Number(right.don?.active||0);result.finishTotals.leftHand+=left.hand.length;result.finishTotals.rightHand+=right.hand.length;result.finishTotals.leftField+=left.field.length;result.finishTotals.rightField+=right.field.length;
+    if(!engine.state.winner||engine.state.turn>=18||left.don.active>=4||right.don.active>=4)result.issueSamples.push({game:game+1,winner:engine.state.winner||'none',turn:engine.state.turn,actions,leftDon:left.don.active,rightDon:right.don.active,leftLife:left.life.length,rightLife:right.life.length,leftHand:left.hand.length,rightHand:right.hand.length});
+    result.games=game+1;
     if(game%10===0||game===count-1){const keepGoing=onProgress({...result,completed:result.games});await new Promise(resolve=>setTimeout(resolve,0));if(keepGoing===false){result.cancelled=true;break}}
   }
   const completed=Math.max(1,result.games);
   result.averageTurns=Number((result.totalTurns/completed).toFixed(2));
   result.leftWinRate=Number((result.leftWins/completed*100).toFixed(1));
   result.rightWinRate=Number((result.rightWins/completed*100).toFixed(1));
+  result.averageActions=Number((result.totalActions/completed).toFixed(1));
+  result.firstStats.leftFirst.winRate=Number((result.firstStats.leftFirst.wins/Math.max(1,result.firstStats.leftFirst.games)*100).toFixed(1));result.firstStats.rightFirst.winRate=Number((result.firstStats.rightFirst.wins/Math.max(1,result.firstStats.rightFirst.games)*100).toFixed(1));
+  const top=map=>Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([id,uses])=>({id,uses,perGame:Number((uses/completed).toFixed(2))}));result.topCards={left:top(result.cardPlays.left),right:top(result.cardPlays.right)};
+  result.finishAverages=Object.fromEntries(Object.entries(result.finishTotals).map(([key,value])=>[key,Number((value/completed).toFixed(2))]));result.issueSamples=result.issueSamples.slice(0,30);
   result.finishedAt=Date.now();
   try{localStorage.setItem('op-ai-selfplay-last',JSON.stringify(result))}catch{}
   return result;
