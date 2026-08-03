@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js?v=3441';
+import{GameEngine}from'./game-engine-v3.js?v=3983';
 
 const baseDeclareAttack=GameEngine.prototype.declareAttack;
 GameEngine.prototype.declareAttack=async function(side,attackerId,targetId){
