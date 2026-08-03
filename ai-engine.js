@@ -528,7 +528,7 @@ const resolveAiPostPlayChoices=async engine=>{
     }else break;
   }
 };
-export async function runAiTurn(engine,speed=500,onStep=()=>{},training=false){let g=engine.state;const openingOutlook=combatOutlook(g),fast=Number(speed)===0,pace=fast?0:Math.max(1000,Number(speed)||500),settle=fast?0:650,show=async text=>{engine.log(`AI行動：${text}`);onStep();await wait(pace)},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){recordAiTurn(engine.state,{stall:true,lethalMiss:openingOutlook.lethal,donWasted:engine.state.sides.ai.don.active});engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;
+export async function runAiTurn(engine,speed=500,onStep=()=>{},training=false){const runEpoch=Number(engine._aiRunEpoch||0),cancelled=()=>Number(engine._aiRunEpoch||0)!==runEpoch;let g=engine.state;const openingOutlook=combatOutlook(g),fast=Number(speed)===0,pace=fast?0:Math.max(1000,Number(speed)||500),settle=fast?0:650,show=async text=>{if(cancelled())return false;engine.log(`AI行動：${text}`);onStep();await wait(pace);return !cancelled()},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){recordAiTurn(engine.state,{stall:true,lethalMiss:openingOutlook.lethal,donWasted:engine.state.sides.ai.don.active});engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;
 if(!attempted.has('__hachinosu__')){
   attempted.add('__hachinosu__');
   const own=g.sides.ai,stage=own.stage;
@@ -545,7 +545,7 @@ if(!attempted.has('__hachinosu__')){
 }
 const hasUnattacked=[g.sides.ai.leader,...g.sides.ai.field].some(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
 const p=await chooseBestPlay(engine,attempted,hasUnattacked,training);
-if(p){await show(`${p.name}を登場・使用します`);const played=await engine.playCard('ai',p.uid);if(played){g._aiPlayedCards??={player:[],ai:[]};g._aiPlayedCards.ai.push(p.id);await resolveAiPostPlayChoices(engine);}onStep();await wait(settle);if(!played)attempted.add(p.uid);
+if(p){if(!await show(`${p.name}を登場・使用します`))return;const played=await engine.playCard('ai',p.uid);if(played){g._aiPlayedCards??={player:[],ai:[]};g._aiPlayedCards.ai.push(p.id);await resolveAiPostPlayChoices(engine);}onStep();await wait(settle);if(!played)attempted.add(p.uid);
 if(played&&p.id==='OP09-093'&&typeof engine.useTeach10==='function'){
   const foe=g.sides.player;
   const target=foe.field.slice().sort((a,b)=>Number(b.cost||0)-Number(a.cost||0)||Number(b.power||0)-Number(a.power||0))[0]||null;
@@ -599,7 +599,7 @@ if(!attempted.has('__luffy_support__')){
     }
   }
 }
-const attackChoice=await chooseBestAttack(engine,attempted,training);if(attackChoice){const a=attackChoice.attacker,target=attackChoice.target,targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`);attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(settle);continue}await show('行動を終えてターンを終了します');recordAiTurn(g,{lethalMiss:openingOutlook.lethal&&!g.winner,donWasted:g.sides.ai.don.active});const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
+const attackChoice=await chooseBestAttack(engine,attempted,training);if(attackChoice){const a=attackChoice.attacker,target=attackChoice.target,targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);if(!await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`))return;attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(settle);continue}if(!await show('行動を終えてターンを終了します'))return;recordAiTurn(g,{lethalMiss:openingOutlook.lethal&&!g.winner,donWasted:g.sides.ai.don.active});const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
 const defenseHandKeepValue=card=>{
   let value=Number(card.counter||0)/1000;
   if(card.id==='ST21-003')value+=12;
