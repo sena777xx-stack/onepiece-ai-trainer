@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js?v=3980';
+import{GameEngine}from'./game-engine-v3.js?v=3981';
 import{runAiTurn}from'./ai-engine.js?v=3970';import{recordSelfPlayMatch}from'./ai-telemetry.js?v=3513';
 
 const flip=side=>side==='player'?'ai':side==='ai'?'player':side;
