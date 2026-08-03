@@ -26,10 +26,24 @@ const drainPending=async engine=>{
     if(p.kind==='battle'){await engine.autoResolveDefense();continue}
     if(['lifeReveal','trigger'].includes(p.kind)){await engine.resolveTrigger(Boolean(p.hasTrigger||p.kind==='trigger'));continue}
     if(p.kind==='handNotice'){engine.resolveHandNotice();continue}
-    if(['effectChoice','handDiscardChoice','teach119OnPlayChoice','teach119TriggerChoice','teachSearch3Choice'].includes(p.kind)){
-      const own=engine.state.sides[side],ids=(p.options||p.cards||[]).map(item=>typeof item==='string'?item:item.uid);
-      if(p.kind==='handDiscardChoice')ids.splice(0,ids.length,...own.hand.slice().sort((a,b)=>Number(a.counter||0)-Number(b.counter||0)).slice(0,p.count||1).map(card=>card.uid));
-      engine.resolveTeachKoChoice(side,ids.slice(0,p.max||1));continue;
+    if(p.kind==='effectChoice'){engine.resolveTeachKoChoice(side,(p.options||[]).slice(0,p.max||1));continue}
+    if(p.kind==='handDiscardChoice'){
+      const own=engine.state.sides[side],ids=own.hand.slice().sort((a,b)=>Number(a.counter||0)-Number(b.counter||0)||Number(a.cost||0)-Number(b.cost||0)).slice(0,p.count||1).map(card=>card.uid);
+      for(const id of ids){const card=own.hand.find(item=>item.uid===id);if(card){own.hand=own.hand.filter(item=>item.uid!==id);own.trash.push(card);engine.log(card.name+'を手札から捨てた')}}
+      engine.state.pending=null;engine.state.phase='main';continue;
+    }
+    if(p.kind==='teachSearch3Choice'){
+      const own=engine.state.sides[side],eligible=(p.cards||[]).filter(card=>card.id!=='OP09-096'&&(card.traits||[]).includes('黒ひげ海賊団')).sort((a,b)=>Number(b.cost||0)-Number(a.cost||0)||Number(b.counter||0)-Number(a.counter||0)),chosen=eligible[0];
+      if(chosen){own.hand.push(chosen);engine.log(chosen.name+'をサーチで手札に加えた')}own.trash.push(...(p.cards||[]).filter(card=>card.uid!==chosen?.uid));engine.state.pending=null;engine.state.phase='main';continue;
+    }
+    if(p.kind==='teach119OnPlayChoice'){
+      const own=engine.state.sides[side],chosen=(p.cards||[]).slice().sort((a,b)=>Number(b.counter||0)-Number(a.counter||0)||Number(b.cost||0)-Number(a.cost||0))[0];
+      if(chosen){chosen.faceUp=false;own.life.push(chosen);engine.log(chosen.name+'をライフの上へ加えた')}own.deck.unshift(...(p.cards||[]).filter(card=>card.uid!==chosen?.uid));engine.state.pending=null;engine.state.phase='main';continue;
+    }
+    if(p.kind==='teach119TriggerChoice'){
+      const foeSide=side==='player'?'ai':'player',foe=engine.state.sides[foeSide];
+      if(p.stage==='negate'){const target=foe.field.find(card=>card.uid===(p.options||[])[0]);if(target){target.effectsNegatedTurn=engine.state.turn;engine.log(target.name+'の効果を無効にした')}p.stage='ko';p.options=foe.field.filter(card=>Number(engine.effectiveCost(foeSide,card))<=5).map(card=>card.uid);if(p.options.length)continue}
+      const target=foe.field.find(card=>card.uid===(p.options||[])[0]);if(target){foe.field=foe.field.filter(card=>card.uid!==target.uid);foe.trash.push(target);engine.log(target.name+'をK.O.した')}engine.state.pending=null;engine.state.phase='main';continue;
     }
     if(p.kind==='luffyNamiSearch'&&engine.resolveLuffyNamiSearch){
       const own=engine.state.sides[side],chosen=(p.cards||[]).filter(card=>(p.options||[]).includes(card.uid)).sort((a,b)=>Number(b.counter||0)-Number(a.counter||0)||Number(b.cost||0)-Number(a.cost||0))[0];
