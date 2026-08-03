@@ -11,7 +11,7 @@ function findTeach3992(sideState, uid){
   );
 }
 
-function finishZehaha3992(engine, side, targetUid, takeLife){
+async function finishZehaha3992(engine, side, targetUid, takeLife){
   const pending = engine.state.pending;
   if(pending?.kind !== 'zehahaChoice' || pending.side !== side) return false;
 
@@ -21,10 +21,13 @@ function finishZehaha3992(engine, side, targetUid, takeLife){
   const teach = targetUid ? findTeach3992(mine, targetUid) : null;
 
   if(teach && mine.field.length < 5){
-    mine.hand = mine.hand.filter(card => card.uid !== teach.uid);
-    teach.summoningSickness = true;
-    mine.field.push(teach);
-    engine.log(`ゼハハハハハハ!!!の効果で${teach.name}を登場`);
+    engine.state.pending = null;
+    engine.state.phase = 'main';
+    const originalCost = teach.cost;
+    teach.cost = 0;
+    const played = await engine.playCard(side, teach.uid);
+    teach.cost = originalCost;
+    if(played) engine.log(`ゼハハハハハハ!!!の効果で${teach.name}を登場`);
   }else if(targetUid){
     engine.log('ゼハハハハハハ!!!：選択したティーチを登場させられませんでした');
   }else{
@@ -46,7 +49,7 @@ function finishZehaha3992(engine, side, targetUid, takeLife){
 }
 
 GameEngine.prototype.resolveZehahaChoice = async function(side, targetUid = null, takeLife = false){
-  return finishZehaha3992(this, side, targetUid, Boolean(takeLife));
+  return await finishZehaha3992(this, side, targetUid, Boolean(takeLife));
 };
 
 GameEngine.prototype.playCard = async function(side, uid){
@@ -83,7 +86,7 @@ GameEngine.prototype.playCard = async function(side, uid){
       .filter(Boolean)
       .sort((a, b) => (b.cost || 0) - (a.cost || 0) || (b.power || 0) - (a.power || 0));
     this.state.pending = {kind:'zehahaChoice', side, options, canTakeLife};
-    finishZehaha3992(this, side, choices[0]?.uid || null, canTakeLife);
+    await finishZehaha3992(this, side, choices[0]?.uid || null, canTakeLife);
     return true;
   }
 
