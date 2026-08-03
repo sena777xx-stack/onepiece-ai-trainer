@@ -28,6 +28,10 @@ async function finishZehaha3992(engine, side, targetUid, takeLife){
     const played = await engine.playCard(side, teach.uid);
     teach.cost = originalCost;
     if(played) engine.log(`ゼハハハハハハ!!!の効果で${teach.name}を登場`);
+    if(played && engine.state.pending){
+      engine.state.pending.afterZehaha3992 = {side, takeLife: Boolean(takeLife)};
+      return true;
+    }
   }else if(targetUid){
     engine.log('ゼハハハハハハ!!!：選択したティーチを登場させられませんでした');
   }else{
@@ -93,6 +97,26 @@ GameEngine.prototype.playCard = async function(side, uid){
   this.state.pending = {kind:'zehahaChoice', side, options, canTakeLife};
   this.state.phase = 'effectChoice';
   this.log('ゼハハハハハハ!!!：登場させるティーチと相手ライフを選択');
+  return true;
+};
+
+
+const previousTeachChoice3992 = GameEngine.prototype.resolveTeachKoChoice;
+GameEngine.prototype.resolveTeachKoChoice = function(side, ids = []){
+  const continuation = this.state?.pending?.afterZehaha3992 || null;
+  const result = previousTeachChoice3992.call(this, side, ids);
+  if(!result || !continuation || this.state.pending) return result;
+  const foeSide = continuation.side === 'player' ? 'ai' : 'player';
+  const foe = this.state.sides[foeSide];
+  if(continuation.takeLife && foe.life.length){
+    const lifeCard = foe.life.pop();
+    foe.hand.push(lifeCard);
+    this.log('ゼハハハハハハ!!!：相手のライフ上1枚を手札に加えた');
+  }else{
+    this.log('ゼハハハハハハ!!!：相手のライフを手札に加えませんでした');
+  }
+  this.state.phase = 'main';
+  this.checkWin();
   return true;
 };
 
