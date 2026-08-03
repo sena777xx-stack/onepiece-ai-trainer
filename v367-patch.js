@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js?v=3441';
+import{GameEngine}from'./game-engine-v3.js?v=3983';
 
 /* Luffy AI must finish with at most five active DON!! so OP13-001
    remains usable during the opponent's attacks. End-turn effects say
