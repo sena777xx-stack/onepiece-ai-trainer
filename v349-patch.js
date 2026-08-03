@@ -2656,3 +2656,17 @@ if(typeof GameEngine.prototype.resolveSanjuanChoice!=='function')GameEngine.prot
   else this.log('サンファン・ウルフのパワー変更対象を選ばなかった');
   this.state.pending=null;this.state.phase='main';return true;
 };
+
+if(typeof GameEngine.prototype.resolveDarkWaterChoice!=='function')GameEngine.prototype.resolveDarkWaterChoice=function(side,targetUid=null){
+  const pending=this.state.pending,s=this.state.sides[side];
+  if(!['darkWaterMainChoice','darkWaterNegateChoice'].includes(pending?.kind)||pending.side!==side)return false;
+  if(pending.kind==='darkWaterMainChoice'){
+    const card=s.trash.find(item=>item.uid===targetUid&&pending.options.includes(item.uid));
+    if(card){s.trash=s.trash.filter(item=>item.uid!==card.uid);s.hand.push(card);this.log('闇水の効果で'+card.name+'を手札へ戻した')}
+    else this.log('闇水で回収するカードを選ばなかった');
+  }else{
+    const foe=this.state.sides[pending.targetSide||((side==='player')?'ai':'player')],target=foe.leader.uid===targetUid?foe.leader:foe.field.find(card=>card.uid===targetUid);
+    if(target&&pending.options.includes(target.uid)){target.effectsNegatedTurn=this.state.turn;this.log('闇水のトリガーで'+target.name+'の効果を無効にした')}
+  }
+  this.state.pending=null;this.state.phase='main';return true;
+};
