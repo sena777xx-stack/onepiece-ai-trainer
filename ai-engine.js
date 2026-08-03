@@ -586,7 +586,7 @@ if(!attempted.has('__luffy_support__')){
         if(engine.attachDon('ai',item.card.uid,item.need)){attached+=item.need;spendable-=item.need}
       }
     }
-    if(spendable>0){
+    if(spendable>0&&(outlookNow.lethal||g.sides.player.life.length<=2)){
       const finisher=ready.slice().sort((a,b)=>{
         const bd=(b.keywords||[]).includes('doubleAttack')?1:0,ad=(a.keywords||[]).includes('doubleAttack')?1:0;
         return bd-ad||battlePower(b)-battlePower(a);
