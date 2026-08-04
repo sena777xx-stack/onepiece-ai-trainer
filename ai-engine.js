@@ -1,5 +1,6 @@
 import{legalPlay,legalAttack,attackTargets,counterOptions,blockers}from'./rule-engine-v3.js?v=3441';import{recordAiTurn,getAiPolicyBias,getCardLearningBonus}from'./ai-telemetry.js?v=3513';const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const battlePower=card=>(card.power||0)+(card.attachedDon||0)*1000+(card.tempPower||0);
+const canAttackLeaderNow=(g,card)=>!(card?.id==='EB04-007'&&card.eb04007RushCharacterThroughTurn===g.turn);
 const targetPower=(g,target)=>{const foe=g.sides.player,card=target.kind==='leader'?foe.leader:foe.field.find(c=>c.uid===target.uid);return(card?.power||0)+(card?.tempPower||0)};
 /* Teach can turn a leader attack into a battle against one of his characters.
    Treat the strongest redirect body as the real defensive line so Luffy does
@@ -234,7 +235,7 @@ const deckPlanBonus=(g,card)=>{
 };
 const combatOutlook=(g,attempted=new Set())=>{
   const own=g.sides.ai,foe=g.sides.player;
-  const attackers=[own.leader,...own.field].filter(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
+  const attackers=[own.leader,...own.field].filter(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card)&&canAttackLeaderNow(g,card));
   const leaderPower=leaderPressurePower(g);
   let spareDon=Math.max(0,Number(own.don?.active||0)),damage=0,pressure=0;
   const powers=attackers.map(card=>({card,power:battlePower(card)})).sort((a,b)=>b.power-a.power);
@@ -430,6 +431,7 @@ const attackOrders=cards=>{
   const seen=new Set();return candidates.filter(order=>{const key=order.map(card=>card.uid).join('|');if(seen.has(key))return false;seen.add(key);return true});
 };
 const bestLeaderAttackSequence=(g,attackers)=>{
+  attackers=attackers.filter(card=>canAttackLeaderNow(g,card));
   const foe=g.sides.player,leaderPower=Number(foe.leader?.power||0)+Number(foe.leader?.tempPower||0);
   const blockerCount=foe.field.filter(card=>!card.rested&&(card.keywords||[]).includes('blocker')).length;
   const estimatedStart=Math.max(0,foe.hand.length-1)*900+(foe.life.length<=1?700:0);
@@ -457,7 +459,8 @@ const chooseBestAttack=async(engine,attempted,training=false)=>{
   const attackers=[own.leader,...own.field].filter(card=>(card.preventAttackThroughTurn??-1)<g.turn&&!attempted.has(card.uid)&&card.aiAttackSkippedTurn!==g.turn&&legalAttack(g,'ai',card));
   const outlook=combatOutlook(g,attempted),policy=getAiPolicyBias(g),sequence=bestLeaderAttackSequence(g,attackers),choices=[];
   if(training){
-    const ordered=sequence.order.length?sequence.order:attackers.slice().sort((a,b)=>battlePower(b)-battlePower(a));
+    const sequenced=new Set(sequence.order.map(card=>card.uid));
+    const ordered=[...sequence.order,...attackers.filter(card=>!sequenced.has(card.uid)).sort((a,b)=>battlePower(b)-battlePower(a))];
     for(const attacker of ordered){const target=chooseAiAttackTarget(g,attacker,targets);if(target&&battlePower(attacker)>=targetPower(g,target))return{attacker,target,score:0}}
     return null;
   }
@@ -566,6 +569,7 @@ if(!attempted.has('__luffy_support__')){
     }
   }
   const ready=[own.leader,...own.field].filter(card=>legalAttack(g,'ai',card));
+  const leaderReady=ready.filter(card=>canAttackLeaderNow(g,card));
   if(own.don.active>0&&ready.length){
     let attached=0;
     const outlookNow=combatOutlook(g,attempted);
@@ -577,7 +581,7 @@ if(!attempted.has('__luffy_support__')){
     const leaderPower=leaderPressurePower(g);
     const lines=outlookNow.lethal?[leaderPower,leaderPower+2000,leaderPower+4000]:[leaderPower,leaderPower+2000];
     for(const line of lines){
-      const candidates=ready.map(card=>({card,need:Math.max(0,Math.ceil((line-battlePower(card))/1000))}))
+      const candidates=leaderReady.map(card=>({card,need:Math.max(0,Math.ceil((line-battlePower(card))/1000))}))
         .filter(item=>item.need>0&&item.need<=spendable)
         .sort((a,b)=>a.need-b.need||battlePower(a.card)-battlePower(b.card));
       while(candidates.length&&spendable>0){
@@ -587,7 +591,7 @@ if(!attempted.has('__luffy_support__')){
       }
     }
     if(spendable>0&&(outlookNow.lethal||g.sides.player.life.length<=2)){
-      const finisher=ready.slice().sort((a,b)=>{
+      const finisher=(leaderReady.length?leaderReady:ready).slice().sort((a,b)=>{
         const bd=(b.keywords||[]).includes('doubleAttack')?1:0,ad=(a.keywords||[]).includes('doubleAttack')?1:0;
         return bd-ad||battlePower(b)-battlePower(a);
       })[0];
