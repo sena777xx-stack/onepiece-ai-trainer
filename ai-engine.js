@@ -92,10 +92,12 @@ const desiredLuffyDefenseDon=g=>{
   const incoming=[g.sides.player.leader,...g.sides.player.field].filter(card=>(card.preventAttackThroughTurn??-1)<g.turn+1).length;
   const negatedUntil=Number(own.leader.effectsNegatedThroughTurn??own.leader.effectsNegatedTurn??-1);
   const leaderEffectAvailable=negatedUntil<g.turn;
-  /* Never reserve DON!! for Luffy's leader effect while 10-cost Teach has
-     negated it. Keep only DON!! that can actually pay a Counter event. */
-  const leaderReserve=!leaderEffectAvailable?0:own.life.length===0?Math.min(5,Math.max(3,incoming))
-    :own.life.length===1?Math.min(4,Math.max(2,incoming)):1;
+  const leaderEffectReady=leaderEffectAvailable&&Number(own.leader.attachedDon||0)>=1;
+  /* Reserve DON!! only when the leader effect can actually be used.
+     Keep enough for several defenses, but do not leave five cards unused
+     when Luffy needs pressure against Teach. */
+  const leaderReserve=!leaderEffectReady?0:own.life.length===0?Math.min(4,Math.max(2,incoming-1))
+    :own.life.length===1?Math.min(3,Math.max(1,incoming-1)):1;
   return Math.min(own.don.active,Math.max(eventReserve,leaderReserve));
 };
 const playScore=(g,card)=>{
