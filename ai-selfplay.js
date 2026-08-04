@@ -1,5 +1,5 @@
 import{GameEngine}from'./game-engine-v3.js?v=3983';
-import{runAiTurn}from'./ai-engine.js?v=3989';import{recordSelfPlayMatch}from'./ai-telemetry.js?v=3513';
+import{runAiTurn}from'./ai-engine.js?v=4001';import{recordSelfPlayMatch}from'./ai-telemetry.js?v=3513';
 
 const flip=side=>side==='player'?'ai':side==='ai'?'player':side;
 const swapPerspective=state=>{
@@ -13,11 +13,25 @@ const swapPerspective=state=>{
   }
   if(state.winner)state.winner=flip(state.winner);
 };
-const keepOpening=hand=>{
+const keepOpening=side=>{
+  const hand=side.hand||[],leader=side.leader?.id;
+  const counter=hand.reduce((sum,card)=>sum+Number(card.counter||0),0);
+  const bricks=hand.filter(card=>Number(card.cost||0)>=7).length;
+  if(leader==='OP13-001'){
+    const starters=new Set(['ST31-005','OP01-016','EB02-017','EB04-002']);
+    const early=hand.some(card=>starters.has(card.id)||(card.type==='character'&&Number(card.cost||0)<=2));
+    const activeDonEngine=hand.some(card=>['ST31-005','OP13-037','OP13-027','OP14-031','OP13-118'].includes(card.id));
+    const pressure=hand.some(card=>card.type==='character'&&Number(card.cost||0)>=4&&Number(card.cost||0)<=7);
+    return early&&activeDonEngine&&pressure&&bricks<=2&&counter>=2000;
+  }
+  if(leader==='OP16-080'){
+    const search=hand.some(card=>['OP09-096','OP16-103','OP16-109','OP16-110'].includes(card.id));
+    const curve=hand.some(card=>card.type==='character'&&Number(card.cost||0)>=3&&Number(card.cost||0)<=5);
+    const finisher=hand.some(card=>['OP09-093','OP16-119','OP16-116'].includes(card.id));
+    return search&&curve&&bricks<=2&&(counter>=2000||finisher);
+  }
   const early=hand.some(card=>card.type!=='event'&&Number(card.cost||0)<=2);
   const middle=hand.some(card=>card.type==='character'&&Number(card.cost||0)>=3&&Number(card.cost||0)<=5);
-  const bricks=hand.filter(card=>Number(card.cost||0)>=7).length;
-  const counter=hand.reduce((sum,card)=>sum+Number(card.counter||0),0);
   return early&&middle&&bricks<=2&&counter>=2000;
 };
 const drainPending=async engine=>{
@@ -86,7 +100,7 @@ export async function runSelfPlay(cards,deckLeft,deckRight,games=100,onProgress=
     const engine=new GameEngine(cards,{player:deckLeft,ai:deckRight}),first=mode==='left'?'player':mode==='right'?'ai':game%2===0?'player':'ai';
     engine.start(first);
     const firstBucket=first==='player'?result.firstStats.leftFirst:result.firstStats.rightFirst;firstBucket.games++;
-    engine.mulligan('player',keepOpening(engine.state.sides.player.hand));
+    engine.mulligan('player',keepOpening(engine.state.sides.player));
     let actions=0;
     while(!engine.state.winner&&engine.state.turn<=40&&actions<240){
       if(engine.state.phase==='mulligan')break;
