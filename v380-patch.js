@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js?v=3983';
+import{GameEngine}from'./game-engine-v3.js?v=4022';
 import{chooseDefense}from'./ai-engine.js?v=3810';
 
 /* Keep battle defense on the same AI policy version as main-phase decisions.
