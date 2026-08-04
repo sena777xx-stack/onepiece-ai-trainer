@@ -515,7 +515,7 @@ const resolveAiPostPlayChoices=async engine=>{
     const pending=engine.state.pending;
     if(!pending||pending.side!=='ai')break;
     const own=engine.state.sides.ai;
-    if(pending.kind==='teach119OnPlayChoice'){
+    if(pending.kind==='effectChoice'&&pending.mode==='teach119Trigger'&&typeof engine.resolveTeachKoChoice==='function'){const foe=engine.state.sides.player;if(pending.stage==='negate'){const chosen=foe.field.slice().sort((x,y)=>Number(y.power||0)-Number(x.power||0)||Number(y.cost||0)-Number(x.cost||0))[0];engine.resolveTeachKoChoice('ai',chosen?[chosen.uid]:[])}else{const chosen=foe.field.filter(card=>engine.effectiveCost('player',card)<=5).sort((x,y)=>Number(y.cost||0)-Number(x.cost||0)||Number(y.power||0)-Number(x.power||0))[0];engine.resolveTeachKoChoice('ai',chosen?[chosen.uid]:[])}}else if(pending.kind==='teach119OnPlayChoice'){
       const chosen=(pending.cards||[]).slice().sort((a,b)=>(hasTrigger(b)?1:0)-(hasTrigger(a)?1:0)||teachSearchPriority(engine.state,b)-teachSearchPriority(engine.state,a))[0];
       engine.resolveTeachKoChoice('ai',chosen?[chosen.uid]:[]);
     }else if(pending.kind==='borsalinoLifeChoice'&&typeof engine.resolveBorsalinoChoice==='function'){
