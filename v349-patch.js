@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js?v=3983';
+import{GameEngine}from'./game-engine-v3.js?v=4022';
 import{UI}from'./ui-fixed.js?v=3441';
 
 const previousPlayCard349=GameEngine.prototype.playCard;
