@@ -6,7 +6,9 @@ import{UI}from'./ui-fixed.js?v=3441';
    counter step so ordinary hand counters remain selectable. */
 GameEngine.prototype.resolveOP13001DefenseBoost=function(side,targetUids=[]){
   const battle=this.state?.pending,own=this.state?.sides?.[side],leader=own?.leader;
-  if(battle?.kind!=='battle'||battle.defendingSide!==side||battle.step!=='counter'||leader?.id!=='OP13-001')return false;
+  if(battle?.kind!=='battle'||battle.defendingSide!==side||leader?.id!=='OP13-001')return false;
+  if(battle.step==='block'&&!this.chooseBlock(side,null))return false;
+  if(battle.step!=='counter')return false;
   if((leader.effectsNegatedThroughTurn??leader.effectsNegatedTurn??-1)>=this.state.turn)return false;
   if(Number(leader.attachedDon||0)<1||Number(own.don?.active||0)<1||Number(own.don.active)>5)return false;
   const eligible=new Set([leader.uid,...own.field.filter(card=>(card.traits||[]).includes('麦わらの一味')).map(card=>card.uid)]);
