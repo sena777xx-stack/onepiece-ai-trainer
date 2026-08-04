@@ -553,7 +553,7 @@ const p=await chooseBestPlay(engine,attempted,hasUnattacked,training);
 if(p){if(!await show(`${p.name}を登場・使用します`))return;const played=await engine.playCard('ai',p.uid);if(played){g._aiPlayedCards??={player:[],ai:[]};g._aiPlayedCards.ai.push(p.id);await resolveAiPostPlayChoices(engine);}onStep();await wait(settle);if(!played)attempted.add(p.uid);
 if(played&&p.id==='OP09-093'&&typeof engine.useTeach10==='function'){
   const foe=g.sides.player;
-  const target=foe.field.slice().sort((a,b)=>Number(b.cost||0)-Number(a.cost||0)||Number(b.power||0)-Number(a.power||0))[0]||null;
+  const teach10Threat=card=>{const timings=new Set((card.effects||[]).map(effect=>effect.timing));return Number(card.power||0)+Number(card.cost||0)*700+Number(card.attachedDon||0)*1000+(timings.has('onAttack')?6000:0)+(timings.has('activateMain')?4500:0)+(timings.has('onKO')?2500:0)+(timings.has('endTurn')?2200:0)+((card.keywords||[]).includes('blocker')?3000:0)};const target=foe.field.slice().sort((a,b)=>teach10Threat(b)-teach10Threat(a)||Number(b.power||0)-Number(a.power||0)||Number(b.cost||0)-Number(a.cost||0))[0]||null;
   if(engine.useTeach10('ai',target?.uid||null)){
     await show('10コスト・ティーチで相手リーダー'+(target?'と'+target.name:'')+'の効果を無効にします');
   }
