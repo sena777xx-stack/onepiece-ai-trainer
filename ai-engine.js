@@ -330,15 +330,16 @@ const preCombatPlayUseful=(g,card)=>{
     if(foe.leader?.id==='OP16-080')return canOpenAttack;
     return canOpenAttack||urgentDefense||legalRestTargets.length>=2;
   }
-  /* Log-derived correction: with a large hand and open field slots, develop
-     real attackers before converting all remaining DON!! into one attack. */
+  /* Keep ordinary deployment until existing attackers have finished.
+     This protects newly played blockers from redirect/K.O. interactions and
+     prevents a K.O. effect from changing the best combat line. */
   const affordable=card.type==='character'&&Number(card.cost||0)<=Number(own.don.active||0);
   const lowDefenseCost=Number(card.counter||0)<2000;
-  if(affordable&&lowDefenseCost&&own.field.length<4&&own.hand.length>=6)return true;
-  if(own.leader?.id==='OP13-001'&&own.life.length===0&&affordable&&lowDefenseCost&&['ST31-004','OP14-022','OP13-037','OP13-027','OP15-032','EB04-007'].includes(card.id))return true;
-  if(own.leader?.id==='OP16-080'&&affordable&&lowDefenseCost&&own.field.length<3&&['OP16-103','OP16-108','OP16-109','OP16-110','OP09-086','OP16-119'].includes(card.id))return true;
+  if(card.id==='OP09-093')return true;
+  if(own.leader?.id==='OP13-001'&&own.life.length===0&&affordable&&lowDefenseCost&&['ST31-004','EB04-007'].includes(card.id))return true;
+  if(own.leader?.id==='OP16-080'&&own.life.length===0&&affordable&&lowDefenseCost&&['OP16-109','OP16-119'].includes(card.id))return true;
   if(card.id==='ST21-003')return foe.life.length<=1&&foe.field.some(target=>!target.rested&&(target.keywords||[]).includes('blocker'));
-  if(card.id==='OP09-093')return foe.leader?.id==='OP13-001'||foe.life.length<=1||foe.field.some(target=>(target.effects||[]).length>0&&Number(target.power||0)>=7000);
+  if(card.id==='OP09-093')return true;
   if(card.id==='EB04-059')return foe.field.some(target=>!target.rested&&engineCost(g,'player',target)<=6&&((target.keywords||[]).includes('blocker')||Number(target.power||0)>=7000||Number(target.cost||0)>=5));
   return false;
 };
@@ -605,7 +606,13 @@ if(!attempted.has('__luffy_support__')){
     }
   }
 }
-const attackChoice=await chooseBestAttack(engine,attempted,training);if(attackChoice){const a=attackChoice.attacker,target=attackChoice.target,targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);if(!await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`))return;attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(settle);continue}if(!await show('行動を終えてターンを終了します'))return;recordAiTurn(g,{lethalMiss:openingOutlook.lethal&&!g.winner,donWasted:g.sides.ai.don.active});const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
+const attackChoice=await chooseBestAttack(engine,attempted,training);if(attackChoice){const a=attackChoice.attacker,target=attackChoice.target,targetCard=target.kind==='leader'?g.sides.player.leader:g.sides.player.field.find(c=>c.uid===target.uid);if(!await show(`${a.name}（${battlePower(a)}）で${targetCard?.name||'対象'}（${targetPower(g,target)}）へ攻撃します`))return;attempted.add(a.uid);const declared=await engine.declareAttack('ai',a.uid,target.uid);onStep();if(!declared){a.aiAttackSkippedTurn=g.turn;engine.log(`AI行動：${a.name}の攻撃は実行できないためスキップします`);onStep();continue}if(g.pending?.defendingSide==='player')return;await engine.autoResolveDefense();onStep();await wait(settle);continue}
+const missedAttackers=[g.sides.ai.leader,...g.sides.ai.field].filter(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
+const missedPlays=g.sides.ai.hand.filter(card=>legalPlay(g,'ai',card)&&!attempted.has(card.uid)&&usefulMainEvent(g,card));
+if(missedAttackers.length||missedPlays.length||g.sides.ai.don.active>0){
+  engine.log(`AI最終確認：攻撃候補${missedAttackers.length}体 / 使用候補${missedPlays.length}枚 / 未使用DON!!${g.sides.ai.don.active}枚`);
+}
+if(!await show('行動を終えてターンを終了します'))return;recordAiTurn(g,{lethalMiss:openingOutlook.lethal&&!g.winner,donWasted:g.sides.ai.don.active});const ended=await engine.endTurn('ai');if(!ended&&!g.pending){g.phase='main';await engine.endTurn('ai')}onStep();return}}
 const defenseHandKeepValue=card=>{
   let value=Number(card.counter||0)/1000;
   if(card.id==='ST21-003')value+=12;
