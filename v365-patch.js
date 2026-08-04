@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js?v=3983';
+import{GameEngine}from'./game-engine-v3.js?v=4022';
 
 /* v365: make Doc Q trigger selection authoritative at resolution time. */
 const previousTeachKoChoice365=GameEngine.prototype.resolveTeachKoChoice;
