@@ -1,4 +1,4 @@
-import{GameEngine}from'./game-engine-v3.js?v=3983';
+import{GameEngine}from'./game-engine-v3.js?v=4022';
 
 /* v362: finalize life triggers on the GameEngine instance used by app.js. */
 const previousResolveTrigger362=GameEngine.prototype.resolveTrigger;
