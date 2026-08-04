@@ -1,4 +1,29 @@
+import{GameEngine}from'./game-engine-v3.js?v=4022';
 import{UI}from'./ui-fixed.js?v=3441';
+
+/* OP13-001 defensive leader effect.
+   Resolve it without leaving the current battle, then return to the same
+   counter step so ordinary hand counters remain selectable. */
+GameEngine.prototype.resolveOP13001DefenseBoost=function(side,targetUids=[]){
+  const battle=this.state?.pending,own=this.state?.sides?.[side],leader=own?.leader;
+  if(battle?.kind!=='battle'||battle.defendingSide!==side||battle.step!=='counter'||leader?.id!=='OP13-001')return false;
+  if((leader.effectsNegatedThroughTurn??leader.effectsNegatedTurn??-1)>=this.state.turn)return false;
+  if(Number(leader.attachedDon||0)<1||Number(own.don?.active||0)<1||Number(own.don.active)>5)return false;
+  const eligible=new Set([leader.uid,...own.field.filter(card=>(card.traits||[]).includes('麦わらの一味')).map(card=>card.uid)]);
+  const requested=(Array.isArray(targetUids)?targetUids:[targetUids]).filter(uid=>eligible.has(uid)).slice(0,own.don.active);
+  if(!requested.length)return false;
+  const currentTarget=battle.targetUid;
+  own.don.active-=requested.length;
+  own.don.rested+=requested.length;
+  let battleBoost=0;
+  for(const uid of requested)if(uid===currentTarget)battleBoost+=2000;
+  battle.targetPower=Number(battle.targetPower||0)+battleBoost;
+  battle.luffyLeaderDonUsed=Number(battle.luffyLeaderDonUsed||0)+requested.length;
+  battle.op13001InlineHandled376=true;
+  battle.op13001Prompted=true;
+  this.log('モンキー・D・ルフィのリーダー効果：DON!!を'+requested.length+'枚レストし、攻撃対象をパワー+'+battleBoost);
+  return true;
+};
 
 function openLuffyLeaderPicker376(ui,g){
   const engine=window.__luffyEngine349,battle=g.pending,own=g.sides.player;
@@ -41,9 +66,9 @@ function openLuffyLeaderPicker376(ui,g){
   const confirm=document.createElement('button');confirm.type='button';confirm.className='primary';confirm.textContent='リーダー効果を決定';
   confirm.addEventListener('click',()=>{
     if(!chosen.length)return;
-    battle.op13001InlineHandled376=true;
     ui.close();
-    engine?.resolveOP13001DefenseBoost('player',chosen);
+    const resolved=engine?.resolveOP13001DefenseBoost('player',chosen);
+    if(!resolved)delete battle.op13001InlineHandled376;
     ui.defense(engine.state);
   });
   foot.append(reset,back,confirm);panel.append(head,body,foot);overlay.append(panel);
