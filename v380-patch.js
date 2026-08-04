@@ -1,5 +1,5 @@
 import{GameEngine}from'./game-engine-v3.js?v=4022';
-import{chooseDefense}from'./ai-engine.js?v=4027';
+import{chooseDefense}from'./ai-engine.js?v=4028';
 
 /* Keep battle defense on the same AI policy version as main-phase decisions.
    Older game-engine imports could otherwise spend hand counters before using
