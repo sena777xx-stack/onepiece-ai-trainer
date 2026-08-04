@@ -124,8 +124,11 @@ function zehahaPrompt3992(ui, state){
   ui.close();
   const pending = state.pending;
   const mine = state.sides.player;
-  const cards = pending.options.map(uid => findTeach3992(mine, uid)).filter(Boolean);
-  let selectedUid = null;
+  const cards = pending.options
+    .map(uid => findTeach3992(mine, uid))
+    .filter(Boolean)
+    .sort((a, b) => (b.cost || 0) - (a.cost || 0) || (b.power || 0) - (a.power || 0));
+  let selectedUid = cards[0]?.uid || null;
   let takeLife = Boolean(pending.canTakeLife);
 
   const overlay = document.createElement('div');
@@ -146,6 +149,10 @@ function zehahaPrompt3992(ui, state){
     for(const button of grid.querySelectorAll('button')){
       button.classList.toggle('selected', button.dataset.id === selectedUid);
     }
+    const selected = cards.find(card => card.uid === selectedUid);
+    confirm.textContent = selected
+      ? `${selected.name}を登場させて決定`
+      : 'ティーチを出さずに決定';
   };
 
   for(const card of cards){
