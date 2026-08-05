@@ -17,6 +17,10 @@ GameEngine.prototype.submitCounters=function(side,counterIds=[]){
     const card=own.hand.find(item=>item.uid===uid);
     if(!card)continue;
     const cost=eventCost(card);
+    if(['OP12-037','OP13-040'].includes(card.id)&&battle.targetKind!=='leader'){
+      this.log(card.name+'はリーダーへのアタック時のみカウンターに使用できます');
+      continue;
+    }
     if(cost>available){
       this.log(card.name+'は使用可能なDON!!が不足しているためカウンターに使用できません');
       continue;
