@@ -478,6 +478,10 @@ const chooseBestAttack=async(engine,attempted,training=false)=>{
       const defender=shadow.state.sides.player;
       const required=Math.max(0,Number(battle.power||0)-Number(battle.targetPower||0)+1000);
       const estimatedCounter=Math.max(0,foe.hand.length-1)*900+(foe.life.length<=1?700:0);
+      const luffyLeaderReady=target.kind==='leader'&&foe.leader?.id==='OP13-001'
+        &&(foe.leader.effectsNegatedThroughTurn??foe.leader.effectsNegatedTurn??-1)<g.turn
+        &&Number(foe.leader.attachedDon||0)>=1&&foe.don.active>0&&foe.don.active<=5;
+      const luffyDefenseBoost=luffyLeaderReady?Number(foe.don.active||0)*2000:0;
       const redirectPower=target.kind==='leader'?leaderPressurePower(g):Number(battle.targetPower||0);
       const redirectGap=Math.max(0,redirectPower-Number(battle.power||0));
       const force=Math.min(required,estimatedCounter)/1000;
@@ -486,7 +490,12 @@ const chooseBestAttack=async(engine,attempted,training=false)=>{
         if(sequence.order[0]?.uid===attacker.uid)score+=sequence.win?2400:90;
         else if(sequence.win)score-=500;
         const doubleAttack=(attacker.keywords||[]).includes('doubleAttack')||(attacker.keywords||[]).includes('double attack');
-        const likelyDamage=required>estimatedCounter;
+        const likelyDamage=required>estimatedCounter+luffyDefenseBoost;
+        if(luffyDefenseBoost>0&&Number(battle.power||0)<=Number(battle.targetPower||0)+luffyDefenseBoost&&!outlook.lethal){
+          const donForced=Math.max(1,Math.ceil(Math.max(0,Number(battle.power||0)-Number(battle.targetPower||0)+1000)/2000));
+          score-=260+luffyDefenseBoost/20;
+          if(donForced>=2&&attackers.length>=2)score+=70;
+        }
         score+=28+(4-foe.life.length)*12+(likelyDamage?52:0)+(doubleAttack?35:0);
         if(foe.leader?.id==='OP16-080'&&foe.hand.length){
           if(redirectGap>0)score-=420+redirectGap/10;
@@ -511,6 +520,25 @@ const chooseBestAttack=async(engine,attempted,training=false)=>{
   }
   return choices.sort((a,b)=>b.score-a.score||(outlook.lethal?battlePower(a.attacker)-battlePower(b.attacker):battlePower(b.attacker)-battlePower(a.attacker))||String(a.attacker.id).localeCompare(String(b.attacker.id))||String(a.target.uid).localeCompare(String(b.target.uid)))[0]||null;
 };
+const teachControlThreat=card=>{
+  const timings=new Set((card?.effects||[]).map(effect=>effect.timing));
+  return Number(card?.power||0)+Number(card?.cost||0)*700+Number(card?.attachedDon||0)*1000
+    +(timings.has('onAttack')?6000:0)+(timings.has('activateMain')?4500:0)
+    +(timings.has('onKO')?2500:0)+(timings.has('endTurn')?2200:0)
+    +((card?.keywords||[]).includes('blocker')?3000:0);
+};
+const chooseTeachControlTarget=(g,mode='negate')=>{
+  const own=g.sides.ai,foe=g.sides.player;
+  const readyAttackers=[own.leader,...own.field].filter(card=>legalAttack(g,'ai',card));
+  return foe.field.filter(card=>mode!=='rest'||!card.rested).slice().sort((a,b)=>{
+    const canKoA=readyAttackers.some(attacker=>battlePower(attacker)>=battlePower(a));
+    const canKoB=readyAttackers.some(attacker=>battlePower(attacker)>=battlePower(b));
+    const restA=(a.keywords||[]).includes('blocker')?5000:0;
+    const restB=(b.keywords||[]).includes('blocker')?5000:0;
+    return (teachControlThreat(b)+restB+(canKoB?4200:0))-(teachControlThreat(a)+restA+(canKoA?4200:0))
+      ||Number(b.power||0)-Number(a.power||0)||Number(b.cost||0)-Number(a.cost||0);
+  })[0]||null;
+};
 const resolveAiPostPlayChoices=async engine=>{
   for(let guard=0;guard<8;guard++){
     const pending=engine.state.pending;
@@ -528,6 +556,9 @@ const resolveAiPostPlayChoices=async engine=>{
     }else if(pending.kind==='shiryuLifeChoice'&&typeof engine.resolveShiryuChoice==='function'){
       const chosen=(pending.options||[]).map(uid=>own.trash.find(card=>card.uid===uid)).filter(Boolean).sort((a,b)=>teachSearchPriority(engine.state,b)-teachSearchPriority(engine.state,a))[0];
       engine.resolveShiryuChoice('ai',chosen?.uid||null);
+    }else if(pending.kind==='effectChoice'&&pending.mode==='vasco'&&typeof engine.resolveTeachKoChoice==='function'){
+      const chosen=chooseTeachControlTarget(engine.state,'rest');
+      engine.resolveTeachKoChoice('ai',chosen?[chosen.uid]:[]);
     }else if(pending.kind==='luffyNamiSearch'&&typeof engine.resolveLuffyNamiSearch==='function'){
       const chosen=(pending.cards||[]).filter(card=>(pending.options||[]).includes(card.uid)).sort((a,b)=>(playScore(engine.state,b)+deckPlanBonus(engine.state,b))-(playScore(engine.state,a)+deckPlanBonus(engine.state,a)))[0];
       engine.resolveLuffyNamiSearch('ai',chosen?.uid||null);
@@ -535,6 +566,17 @@ const resolveAiPostPlayChoices=async engine=>{
   }
 };
 export async function runAiTurn(engine,speed=500,onStep=()=>{},training=false){const runEpoch=Number(engine._aiRunEpoch||0),cancelled=()=>Number(engine._aiRunEpoch||0)!==runEpoch;let g=engine.state;const openingOutlook=combatOutlook(g),fast=Number(speed)===0,pace=fast?0:Math.max(1000,Number(speed)||500),settle=fast?0:650,show=async text=>{if(cancelled())return false;engine.log(`AI行動：${text}`);onStep();await wait(pace);return !cancelled()},attempted=new Set();let steps=0;while((g=engine.state).activeSide==='ai'&&!g.winner){if(++steps>100){recordAiTurn(engine.state,{stall:true,lethalMiss:openingOutlook.lethal,donWasted:engine.state.sides.ai.don.active});engine.log('AI行動：安全処理によりターンを終了します');if(g.pending?.kind==='battle')engine.endBattle();if(g.phase!=='main'&&!g.pending)g.phase='main';await engine.endTurn('ai');onStep();return}if(g.pending)return;
+if(!attempted.has('__teach10_main__')&&typeof engine.useTeach10==='function'){
+  const teach10=g.sides.ai.field.find(card=>card.id==='OP09-093'&&card.teach10PlayedTurn===g.turn&&card.teach10UsedTurn!==g.turn);
+  if(teach10){
+    attempted.add('__teach10_main__');
+    const target=chooseTeachControlTarget(g,'negate');
+    if(engine.useTeach10('ai',target?.uid||null)){
+      await show('10コスト・ティーチで相手リーダー'+(target?'と'+target.name:'')+'の効果を無効にします');
+      continue;
+    }
+  }
+}
 if(!attempted.has('__hachinosu__')){
   attempted.add('__hachinosu__');
   const own=g.sides.ai,stage=own.stage;
@@ -552,13 +594,6 @@ if(!attempted.has('__hachinosu__')){
 const hasUnattacked=[g.sides.ai.leader,...g.sides.ai.field].some(card=>!attempted.has(card.uid)&&legalAttack(g,'ai',card));
 const p=await chooseBestPlay(engine,attempted,hasUnattacked,training);
 if(p){if(!await show(`${p.name}を登場・使用します`))return;const played=await engine.playCard('ai',p.uid);if(played){g._aiPlayedCards??={player:[],ai:[]};g._aiPlayedCards.ai.push(p.id);await resolveAiPostPlayChoices(engine);}onStep();await wait(settle);if(!played)attempted.add(p.uid);
-if(played&&p.id==='OP09-093'&&typeof engine.useTeach10==='function'){
-  const foe=g.sides.player;
-  const teach10Threat=card=>{const timings=new Set((card.effects||[]).map(effect=>effect.timing));return Number(card.power||0)+Number(card.cost||0)*700+Number(card.attachedDon||0)*1000+(timings.has('onAttack')?6000:0)+(timings.has('activateMain')?4500:0)+(timings.has('onKO')?2500:0)+(timings.has('endTurn')?2200:0)+((card.keywords||[]).includes('blocker')?3000:0)};const target=foe.field.slice().sort((a,b)=>teach10Threat(b)-teach10Threat(a)||Number(b.power||0)-Number(a.power||0)||Number(b.cost||0)-Number(a.cost||0))[0]||null;
-  if(engine.useTeach10('ai',target?.uid||null)){
-    await show('10コスト・ティーチで相手リーダー'+(target?'と'+target.name:'')+'の効果を無効にします');
-  }
-}
 continue}
 if(!attempted.has('__luffy_support__')){
   attempted.add('__luffy_support__');
